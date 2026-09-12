@@ -97,7 +97,7 @@ def message_user_id(query: CallbackQuery) -> int:
 
 
 @router.callback_query(F.data.startswith("i3d_review:"))
-async def review(query: CallbackQuery, state: FSMContext):
+async def review(query: CallbackQuery, state: FSMContext, bot: Bot):
     action = query.data.split(":", 1)[1]
     if action == "approve":
         data = await state.get_data()
@@ -107,8 +107,8 @@ async def review(query: CallbackQuery, state: FSMContext):
         files = [selected / "Character.blend", selected / "Character.glb"]
         for output in files:
             if output.is_file():
-                await query.bot.send_document(query.from_user.id, FSInputFile(output))
-        await query.bot.send_message(
+                await bot.send_document(query.from_user.id, FSInputFile(output))
+        await bot.send_message(
             query.from_user.id,
             "Модель подтверждена. Можно выбрать 🦴 Добавить скелет или 🎭 Анимировать.",
             reply_markup=main_menu(),
@@ -117,7 +117,7 @@ async def review(query: CallbackQuery, state: FSMContext):
     else:
         await state.update_data(correction_area=action)
         await state.set_state(ImageTo3DFlow.correction)
-        await query.bot.send_message(
+        await bot.send_message(
             query.from_user.id,
             "Опишите исправление естественным языком. Текущая модель будет изменена, а не создана заново.",
         )
