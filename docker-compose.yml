@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: postgres:16.4-alpine
+    environment: {POSTGRES_USER: kira, POSTGRES_PASSWORD: kira, POSTGRES_DB: kira}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: [CMD-SHELL, pg_isready -U kira], interval: 5s, timeout: 3s, retries: 10}
+  redis:
+    image: redis:7.4.0-alpine
+    command: redis-server --appendonly yes
+    volumes: [redis_data:/data]
+  api:
+    build: .
+    command: sh -c "alembic upgrade head && uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    env_file: .env
+    ports: ["8000:8000"]
+    volumes: [projects:/data/projects]
+    depends_on: [postgres, redis]
+  bot:
+    build: .
+    command: python -m app.bot.main
+    env_file: .env
+    volumes: [projects:/data/projects]
+    depends_on: [postgres, redis]
+  ai-worker:
+    build: .
+    command: celery -A app.workers.celery_app:celery_app worker -Q cpu --loglevel=INFO --concurrency=2
+    env_file: .env
+    volumes: [projects:/data/projects]
+  gpu-worker:
+    build: {context: ., dockerfile: docker/Dockerfile.blender}
+    command: celery -A app.workers.celery_app:celery_app worker -Q gpu --loglevel=INFO --concurrency=1
+    env_file: .env
+    volumes: [projects:/data/projects]
+    deploy:
+      resources:
+        limits: {memory: 16G}
+  image-analysis-worker:
+    build: .
+    command: celery -A app.workers.celery_app:celery_app worker -Q image-analysis,texture,audio,animation --loglevel=INFO --concurrency=2
+    env_file: .env
+    volumes: [projects:/data/projects]
+  video-worker:
+    build: .
+    command: celery -A app.workers.celery_app:celery_app worker -Q video --loglevel=INFO --concurrency=1
+    env_file: .env
+    volumes: [projects:/data/projects]
+    deploy:
+      resources:
+        limits: {memory: 8G}
+  blender-worker:
+    build: {context: ., dockerfile: docker/Dockerfile.blender}
+    env_file: .env
+    volumes: [projects:/data/projects]
+  minio:
+    image: minio/minio:RELEASE.2024-09-22T00-33-43Z
+    command: server /data --console-address :9001
+    environment: {MINIO_ROOT_USER: kira, MINIO_ROOT_PASSWORD: change-me-now}
+    volumes: [minio_data:/data]
+volumes: {postgres_data: {}, redis_data: {}, projects: {}, minio_data: {}}
