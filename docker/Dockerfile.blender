@@ -2,6 +2,7 @@ FROM linuxserver/blender:4.2.3
 USER root
 RUN apt-get update && apt-get install -y python3-pip ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+COPY requirements.lock ./
+RUN pip3 install --break-system-packages --no-cache-dir -r requirements.lock
 COPY . .
-RUN pip3 install --break-system-packages celery redis sqlalchemy asyncpg
-ENTRYPOINT ["celery","-A","app.workers.celery_app:celery_app","worker","-Q","blender","--loglevel=INFO"]
+ENTRYPOINT ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "-Q", "blender", "--loglevel=INFO"]
