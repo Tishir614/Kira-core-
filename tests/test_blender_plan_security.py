@@ -22,6 +22,18 @@ def test_rejects_path_traversal():
         )
 
 
+@pytest.mark.parametrize("path", ["/etc/passwd", "../secret.glb", "models/../../secret.glb", "~/.ssh/id_rsa", "\\server\\share"])
+def test_rejects_all_non_project_asset_paths(path):
+    with pytest.raises(Exception):
+        BlenderPlan.model_validate(
+            {
+                "schema_version": 1,
+                "project_id": "00000000-0000-0000-0000-000000000000",
+                "operations": [{"operation": "import_model", "asset_key": path}],
+            }
+        )
+
+
 def test_valid_light_plan():
     plan = BlenderPlan.model_validate(
         {

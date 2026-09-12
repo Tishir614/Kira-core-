@@ -45,7 +45,9 @@ async def image_reference(message: Message, state: FSMContext, bot: Bot):
         mime = document.mime_type
         file_size = document.file_size
     else:
-        assert photo is not None
+        if photo is None:
+            await message.answer("Изображение не найдено.")
+            return
         file_id = photo.file_id
         original = f"{file_id}.jpg"
         mime = "image/jpeg"

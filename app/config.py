@@ -14,6 +14,7 @@ class Settings:
     max_upload_mb: int
     blender_bin: str
     ffmpeg_bin: str
+    ffprobe_bin: str
     external_storage_url: str
     image_to_3d_provider_url: str
     image_to_3d_provider_key: str
@@ -32,6 +33,7 @@ def get_settings() -> Settings:
         max_upload_mb=int(os.getenv("MAX_UPLOAD_MB", "100")),
         blender_bin=os.getenv("BLENDER_BIN", "blender"),
         ffmpeg_bin=os.getenv("FFMPEG_BIN", "ffmpeg"),
+        ffprobe_bin=os.getenv("FFPROBE_BIN", "ffprobe"),
         external_storage_url=os.getenv("EXTERNAL_STORAGE_URL", ""),
         image_to_3d_provider_url=os.getenv("IMAGE_TO_3D_PROVIDER_URL", ""),
         image_to_3d_provider_key=os.getenv("IMAGE_TO_3D_PROVIDER_KEY", ""),

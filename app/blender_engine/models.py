@@ -1,5 +1,6 @@
 from __future__ import annotations
 from enum import StrEnum
+from pathlib import PurePosixPath
 from typing import Annotated, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -25,6 +26,14 @@ class OperationName(StrEnum):
 
 class StrictOperation(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+    @field_validator("asset_key", "output_key", check_fields=False)
+    @classmethod
+    def project_relative_path(cls, value: str) -> str:
+        path = PurePosixPath(value)
+        if path.is_absolute() or ".." in path.parts or value.startswith(("~", "\\")):
+            raise ValueError("asset paths must stay inside the project")
+        return value
 
 
 class ImportModel(StrictOperation):

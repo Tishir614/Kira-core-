@@ -1,4 +1,4 @@
-import json, subprocess
+import json, subprocess  # nosec B404 - fixed FFmpeg argv only; shell mode is never used
 from dataclasses import dataclass
 from pathlib import Path
 from app.config import get_settings
@@ -26,12 +26,21 @@ def encode_video(frames: Path, output: Path, spec: VideoSpec, audio: Path | None
     if audio:
         args += ["-c:a", "aac"]
     args.append(str(output))
-    subprocess.run(args, check=True, capture_output=True)
+    subprocess.run(args, check=True, capture_output=True)  # nosec B603
 
 
 def probe_video(path: Path, spec: VideoSpec, audio_required: bool = False) -> dict:
-    cmd = ["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type,width,height,avg_frame_rate", "-of", "json", str(path)]
-    data = json.loads(subprocess.run(cmd, check=True, capture_output=True, text=True).stdout)
+    cmd = [
+        get_settings().ffprobe_bin,
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration:stream=codec_type,width,height,avg_frame_rate",
+        "-of",
+        "json",
+        str(path),
+    ]
+    data = json.loads(subprocess.run(cmd, check=True, capture_output=True, text=True).stdout)  # nosec B603
     streams = data.get("streams", [])
     video = next((x for x in streams if x.get("codec_type") == "video"), None)
     issues = []
