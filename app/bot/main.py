@@ -107,13 +107,20 @@ async def review(query: CallbackQuery, state: FSMContext):
         files = [selected / "Character.blend", selected / "Character.glb"]
         for output in files:
             if output.is_file():
-                await query.message.answer_document(FSInputFile(output))
-        await query.message.answer("Модель подтверждена. Можно выбрать 🦴 Добавить скелет или 🎭 Анимировать.", reply_markup=main_menu())
+                await query.bot.send_document(query.from_user.id, FSInputFile(output))
+        await query.bot.send_message(
+            query.from_user.id,
+            "Модель подтверждена. Можно выбрать 🦴 Добавить скелет или 🎭 Анимировать.",
+            reply_markup=main_menu(),
+        )
         await state.clear()
     else:
         await state.update_data(correction_area=action)
         await state.set_state(ImageTo3DFlow.correction)
-        await query.message.answer("Опишите исправление естественным языком. Текущая модель будет изменена, а не создана заново.")
+        await query.bot.send_message(
+            query.from_user.id,
+            "Опишите исправление естественным языком. Текущая модель будет изменена, а не создана заново.",
+        )
     await query.answer()
 
 
@@ -140,6 +147,9 @@ async def run():
 
 @router.message(ImageTo3DFlow.correction, F.text)
 async def correction(message: Message, state: FSMContext):
+    if message.from_user is None:
+        await message.answer("Не удалось определить пользователя. Повторите команду в личном чате с ботом.")
+        return
     data = await state.get_data()
     image_to_3d_revision_task.delay(data["project_id"], message.from_user.id, message.text, data.get("correction_area", "general"))
     await state.set_state(ImageTo3DFlow.processing)
