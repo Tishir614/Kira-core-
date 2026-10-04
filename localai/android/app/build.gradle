@@ -43,7 +43,8 @@ def copyWeb = tasks.register('copyWeb', Copy) {
     from('../../web')
     into(layout.buildDirectory.dir('generated/web/web'))
 }
-tasks.matching { it.name.matches('merge.*Assets') || it.name.matches('lint.*') }.configureEach { dependsOn copyWeb }
+// Любая задача сборки (в т.ч. lint) читает assets, поэтому копирование интерфейса выполняется первым.
+tasks.configureEach { t -> if (t.name != 'copyWeb') t.dependsOn(copyWeb) }
 
 dependencies {
     implementation project(':core')
