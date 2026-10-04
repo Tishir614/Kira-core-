@@ -26,6 +26,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: {gradle-version: '8.9'}
 
+      - name: Link analyzer tests (Node)
+        run: node --test localai/tests/analyze.test.js
+
       - name: Core unit tests (JVM)
         working-directory: localai/android
         run: gradle :core:test --no-daemon

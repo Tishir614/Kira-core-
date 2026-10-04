@@ -200,6 +200,10 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
 
     app.mount("/outputs", StaticFiles(directory=outputs_dir()), name="outputs")
 
+    @app.get("/analyze.js")
+    def analyze_js() -> FileResponse:
+        return FileResponse(STATIC / "analyze.js", media_type="text/javascript")
+
     @app.get("/")
     def index() -> FileResponse:
         return FileResponse(STATIC / "index.html")
