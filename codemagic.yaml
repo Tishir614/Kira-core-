@@ -1,0 +1,83 @@
+# Codemagic: сборка Android-приложения Kira Local (папка localai/android) в APK.
+# Подробная инструкция: localai/CODEMAGIC.md
+#
+# Workflow `kira-local-apk`    — без настройки: APK подписывается debug-ключом (устанавливается сразу).
+# Workflow `kira-local-signed` — подпись вашим keystore (Codemagic → Code signing identities, имя ссылки: kira_keystore), APK + AAB.
+
+definitions:
+  env: &common_env
+    java: 17
+    node: 20
+    vars:
+      LLAMA_REF: master        # ветка/тег llama.cpp; для воспроизводимости можно указать тег
+  cache: &common_cache
+    cache_paths:
+      - $HOME/.gradle/caches
+      - $HOME/.gradle/wrapper
+      - $HOME/.cache/kira-llama   # собранный llama-server (сборка ~10 мин, дальше берётся из кэша)
+  scripts:
+    - &prepare_sdk
+      name: Подготовка Android SDK
+      script: bash localai/android/scripts/setup_sdk.sh
+    - &run_tests
+      name: Тесты (Node + JVM)
+      script: |
+        node --test localai/tests/analyze.test.js localai/tests/hub.test.js localai/tests/md.test.js
+        cd localai/android
+        ./gradlew :core:test --no-daemon
+    - &build_llama
+      name: Сборка llama-server (llama.cpp) для Android arm64
+      script: bash localai/android/scripts/build_llama.sh
+
+workflows:
+  kira-local-apk:
+    name: Kira Local — APK
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment: *common_env
+    cache: *common_cache
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+        - pattern: 'claude/*'
+          include: true
+          source: true
+      cancel_previous_builds: true
+    scripts:
+      - *prepare_sdk
+      - *run_tests
+      - *build_llama
+      - name: Сборка APK
+        script: |
+          cd localai/android
+          ./gradlew :app:assembleRelease --no-daemon
+          mkdir -p ../../build_out
+          cp app/build/outputs/apk/release/*.apk ../../build_out/KiraLocal.apk
+    artifacts:
+      - build_out/KiraLocal.apk
+      - localai/android/app/build/outputs/apk/release/*.apk
+
+  kira-local-signed:
+    name: Kira Local — подписанные APK + AAB
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      <<: *common_env
+      android_signing:
+        - kira_keystore
+    cache: *common_cache
+    scripts:
+      - *prepare_sdk
+      - *run_tests
+      - *build_llama
+      - name: Сборка подписанных APK и AAB
+        script: |
+          cd localai/android
+          ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon
+    artifacts:
+      - localai/android/app/build/outputs/apk/release/*.apk
+      - localai/android/app/build/outputs/bundle/release/*.aab

@@ -24,7 +24,7 @@ python -m kira_local            # http://127.0.0.1:8765
 
 Папка `android/` — приложение, которое запускает модели **прямо на телефоне**: тот же интерфейс (`web/`), локальный сервер на Java (`android/core`) и `llama-server` (llama.cpp), собранный под arm64.
 
-APK собирает GitHub Actions (`.github/workflows/android.yml`): откройте вкладку **Actions → Android APK → последний запуск → Artifacts → KiraLocal-apk**, скачайте, распакуйте zip и установите `KiraLocal.apk` (разрешите установку из неизвестных источников). Запуск вручную: Actions → Android APK → Run workflow. Тег `kira-local-v1.0` прикрепляет APK к релизу.
+APK собирает **Codemagic** (`codemagic.yaml`, инструкция — [CODEMAGIC.md](CODEMAGIC.md)) или GitHub Actions (`.github/workflows/android.yml`): откройте вкладку **Actions → Android APK → последний запуск → Artifacts → KiraLocal-apk**, скачайте, распакуйте zip и установите `KiraLocal.apk` (разрешите установку из неизвестных источников). Запуск вручную: Actions → Android APK → Run workflow. Тег `kira-local-v1.0` прикрепляет APK к релизу.
 
 Заметки: нужен arm64-телефон (2018+), 6 ГБ ОЗУ и более комфортны для 3–7B моделей (квант Q4_K_M); модели хранятся в памяти приложения (`Android/data/dev.kira.local/files/models`). Генерация изображений на телефоне пока недоступна; используйте «Свой сервер» (Ollama и др.) для моделей любого формата.
 

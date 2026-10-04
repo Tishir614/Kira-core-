@@ -10,17 +10,36 @@ android {
         applicationId 'dev.kira.local'
         minSdk 26
         targetSdk 34
-        versionCode 1
+        // На Codemagic номер сборки растёт сам — новую версию можно ставить поверх старой.
+        versionCode((System.getenv('BUILD_NUMBER') ?: '1') as int)
         versionName '1.0.0'
         ndk { abiFilters 'arm64-v8a' }
+    }
+
+    // Если в Codemagic подключён keystore (android_signing), подписываем им; иначе — debug-ключом, чтобы APK можно было сразу установить.
+    def cmKeystore = System.getenv('CM_KEYSTORE_PATH')
+    signingConfigs {
+        if (cmKeystore) {
+            release {
+                storeFile file(cmKeystore)
+                storePassword System.getenv('CM_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('CM_KEY_ALIAS')
+                keyPassword System.getenv('CM_KEY_PASSWORD')
+            }
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
-            // Подписываем debug-ключом, чтобы APK можно было сразу установить.
-            signingConfig signingConfigs.debug
+            signingConfig cmKeystore ? signingConfigs.release : signingConfigs.debug
         }
+    }
+
+    // Lint для релиза не нужен для APK и заметно замедляет сборку.
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     compileOptions {
