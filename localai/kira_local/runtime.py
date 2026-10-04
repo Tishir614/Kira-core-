@@ -67,6 +67,8 @@ class Runtime:
             raise RuntimeError_("Модель не найдена")
         if model["kind"] == "image":
             raise RuntimeError_("Модель изображений загружается в Студии автоматически")
+        if model["kind"] == "other":
+            raise RuntimeError_("Тип «other» только хранится; запускать можно chat/code модели")
         if slot.loading:
             raise RuntimeError_("Слот уже загружается")
         self.unload(slot_name)

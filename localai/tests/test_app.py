@@ -16,6 +16,8 @@ def hf_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"siblings": [{"rfilename": "tiny.Q4_K_M.gguf", "size": len(GGUF)}]})
     if request.url.path == "/acme/tiny-GGUF/resolve/main/tiny.Q4_K_M.gguf":
         return httpx.Response(200, content=GGUF)
+    if request.url.path == "/api/models":
+        return httpx.Response(200, json=[{"id": "acme/tiny-GGUF", "downloads": 5, "likes": 1, "pipeline_tag": "text-generation"}])
     return httpx.Response(404)
 
 
@@ -45,6 +47,7 @@ async def test_download_load_chat_flow(data_dir, fake_llama):
     app = create_app(transport=httpx.MockTransport(hf_handler))
     async with client(app) as c:
         assert (await c.get("/api/hf/files", params={"repo": "acme/tiny-GGUF"})).json() == [{"name": "tiny.Q4_K_M.gguf", "size": len(GGUF)}]
+        assert (await c.get("/api/hf/search", params={"q": "tiny", "gguf": 1})).json()[0]["id"] == "acme/tiny-GGUF"
         job = (await c.post("/api/downloads", json={"source": "hf", "repo": "acme/tiny-GGUF", "files": ["tiny.Q4_K_M.gguf"]})).json()
         for _ in range(50):
             jobs = (await c.get("/api/downloads")).json()

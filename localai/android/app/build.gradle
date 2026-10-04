@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'dev.kira.local.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'dev.kira.local'
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName '1.0.0'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Подписываем debug-ключом, чтобы APK можно было сразу установить.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions {
+        // llama-server лежит как libllama_server.so и должен быть распакован на диск, чтобы его можно было запустить.
+        jniLibs { useLegacyPackaging = true }
+    }
+
+    sourceSets {
+        main { assets.srcDir layout.buildDirectory.dir('generated/web') }
+    }
+}
+
+// Интерфейс общий с настольной версией (localai/web) — копируем в assets/web.
+def copyWeb = tasks.register('copyWeb', Copy) {
+    from('../../web')
+    into(layout.buildDirectory.dir('generated/web/web'))
+}
+tasks.matching { it.name.matches('merge.*Assets') || it.name.matches('lint.*') }.configureEach { dependsOn copyWeb }
+
+dependencies {
+    implementation project(':core')
+}

@@ -19,7 +19,7 @@ from .downloader import DownloadError, Downloads
 from .registry import KINDS, Registry, slugify
 from .runtime import Runtime, RuntimeError_
 
-STATIC = Path(__file__).parent / "static"
+STATIC = Path(__file__).resolve().parent.parent / "web"
 
 
 class DownloadReq(BaseModel):
@@ -80,7 +80,7 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
-        return {**runtime.status(), "diffusers": imagegen.available()}
+        return {**runtime.status(), "diffusers": imagegen.available(), "images": imagegen.available(), "platform": "desktop"}
 
     # ----- модели -----
     @app.get("/api/models")
@@ -109,6 +109,13 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
     async def hf_files(repo: str, token: str | None = None) -> list[dict[str, Any]]:
         try:
             return await downloads.hf_files(repo, hf_token(token))
+        except DownloadError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+    @app.get("/api/hf/search")
+    async def hf_search(q: str = "", gguf: int = 0) -> list[dict[str, Any]]:
+        try:
+            return await downloads.hf_search(q, bool(gguf))
         except DownloadError as exc:
             raise HTTPException(400, str(exc)) from exc
 

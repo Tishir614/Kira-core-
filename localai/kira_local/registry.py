@@ -13,7 +13,7 @@ from typing import Any
 
 from .config import data_dir, models_dir
 
-KINDS = ("chat", "code", "image")
+KINDS = ("chat", "code", "image", "other")
 
 
 def guess_kind(name: str, has_model_index: bool = False) -> str:

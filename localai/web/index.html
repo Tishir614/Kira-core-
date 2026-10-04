@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d14">
+<title>Kira Local</title>
+<style>
+:root{
+  --bg:#0b0d14;--bg2:#10131c;--card:#151925;--card2:#1b2030;--line:#262c3f;--text:#eceff7;--dim:#8d96b0;
+  --accent:#7c9cff;--accent2:#b67cff;--ok:#43d19e;--warn:#ffb454;--err:#ff6b7a;--r:16px;
+  --grad:linear-gradient(135deg,#7c9cff,#b67cff);--code:#080a10;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:light){:root{
+  --bg:#f5f6fb;--bg2:#eceef6;--card:#fff;--card2:#f0f2fa;--line:#dde1ee;--text:#171a26;--dim:#667090;--accent:#4c6fff;--accent2:#9a54f5;--code:#161a26}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button,select,input,textarea{font:inherit;color:inherit;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:9px 12px;outline:none;min-height:40px}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+button{cursor:pointer;transition:transform .08s,border-color .15s,background .15s}button:active{transform:scale(.97)}
+button.primary{background:var(--grad);border:0;color:#fff;font-weight:600}
+button.ghost{background:transparent}button.danger{color:var(--err)}button:disabled{opacity:.5}
+textarea{resize:none;width:100%}input,select{width:100%}
+h3{margin:18px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}
+.dim{color:var(--dim);font-size:13px}.ok{color:var(--ok)}.err{color:var(--err)}.hidden{display:none!important}
+
+/* шапка */
+.top{padding:calc(10px + var(--sat)) 14px 10px;display:flex;align-items:center;gap:10px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.logo{width:34px;height:34px;border-radius:11px;background:var(--grad);display:grid;place-items:center;color:#fff;font-weight:800}
+.top h1{margin:0;font-size:17px;flex:1;line-height:1.1}.top h1 small{display:block;font-size:11px;font-weight:400;color:var(--dim)}
+.pill{font-size:12px;padding:4px 10px;border-radius:99px;background:var(--card2);border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.pill.on{color:var(--ok);border-color:#2a6b57}
+
+/* чат */
+main{flex:1;min-height:0;display:flex;flex-direction:column;max-width:900px;width:100%;margin:0 auto}
+.tools{display:flex;gap:8px;padding:10px 14px 0;flex-wrap:wrap}
+.tools select{flex:1;min-width:140px}.tools .small{width:auto}
+.modelbar{display:flex;gap:8px;padding:8px 14px;align-items:center}.modelbar select{flex:1}
+.log{flex:1;overflow:auto;padding:6px 14px 14px;scroll-behavior:smooth}
+.empty{margin:12vh auto 0;text-align:center;color:var(--dim);max-width:420px}
+.empty .big{font-size:42px}.chips{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.chip{padding:7px 12px;border-radius:99px;background:var(--card2);border:1px solid var(--line);font-size:13px;min-height:0}
+.msg{margin:12px 0;display:flex;flex-direction:column;gap:4px;max-width:92%}
+.msg .bub{padding:11px 14px;border-radius:18px;background:var(--card);border:1px solid var(--line);white-space:pre-wrap;word-wrap:break-word;border-top-left-radius:6px}
+.msg.user{align-self:flex-end;align-items:flex-end}.msg.user .bub{background:var(--grad);color:#fff;border:0;border-top-left-radius:18px;border-top-right-radius:6px}
+.msg .meta{font-size:11px;color:var(--dim);padding:0 6px}
+pre{position:relative;background:var(--code);color:#e8ebf5;padding:12px;border-radius:12px;overflow:auto;margin:8px 0;white-space:pre;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace}
+pre .copy{position:absolute;top:6px;right:6px;padding:2px 9px;min-height:0;font-size:12px;background:#ffffff18;border:0;color:#fff}
+.composer{display:flex;gap:8px;padding:8px 14px 10px;align-items:flex-end}
+.composer textarea{height:46px;max-height:140px;border-radius:22px;padding:11px 16px}
+.send{width:46px;height:46px;border-radius:50%;padding:0;flex:none;font-size:20px}
+
+/* нижняя навигация */
+nav{display:flex;background:var(--bg2);border-top:1px solid var(--line);padding:6px 10px calc(6px + var(--sab));gap:6px}
+nav button{flex:1;background:transparent;border:0;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:12px;color:var(--dim);padding:6px;min-height:0}
+nav button b{font-size:20px;line-height:1.2;font-weight:400}nav button.active{color:var(--accent)}
+
+/* шторки */
+.sheet{position:fixed;top:0;bottom:0;width:min(580px,100%);background:var(--bg);z-index:20;display:flex;flex-direction:column;transition:transform .28s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 60px #0008}
+.sheet.left{left:0;transform:translateX(-105%)}.sheet.right{right:0;transform:translateX(105%);width:min(760px,100%)}.sheet.open{transform:none}
+.sheet>header{display:flex;align-items:center;gap:10px;padding:calc(12px + var(--sat)) 14px 12px;background:var(--bg2);border-bottom:1px solid var(--line)}
+.sheet>header h2{margin:0;font-size:18px;flex:1}
+.sheet .body{flex:1;overflow:auto;padding:14px 14px calc(24px + var(--sab))}
+.scrim{position:fixed;inset:0;background:#0009;z-index:15;opacity:0;pointer-events:none;transition:opacity .25s}.scrim.show{opacity:1;pointer-events:auto}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:8px 0;background:var(--card)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:0 0 auto}.row>.grow{flex:1;min-width:0}
+.seg{display:flex;gap:6px;overflow:auto;margin-bottom:12px;padding-bottom:2px}.seg button{white-space:nowrap;min-height:0;padding:7px 14px;border-radius:99px}
+.seg button.active{background:var(--grad);border:0;color:#fff}
+.badge{font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--dim)}
+.badge.chat{color:var(--accent)}.badge.code{color:var(--ok)}.badge.image{color:var(--accent2)}.badge.other{color:var(--warn)}
+progress{width:100%;height:8px;border-radius:8px;overflow:hidden;appearance:none;margin-top:8px}
+progress::-webkit-progress-bar{background:var(--card2)}progress::-webkit-progress-value{background:var(--grad)}
+label{display:block;margin:10px 0 4px;font-size:13px;color:var(--dim)}
+.files{max-height:230px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px;margin-top:8px;background:var(--card)}
+.files label{display:flex;gap:8px;align-items:center;margin:0;padding:5px 4px;color:var(--text);font-size:13px}.files input{width:auto;min-height:0}
+.hit{display:flex;gap:8px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer}.hit:last-child{border:0}.hit b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+img.out{width:100%;border-radius:14px;border:1px solid var(--line);margin-top:12px}
+.stat{display:flex;gap:10px;margin:6px 0}.stat div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px}.stat b{display:block;font-size:18px}
+@media (min-width:900px){.sheet.left{width:520px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="logo">K</div>
+  <h1>Kira Local<small>ИИ на вашем устройстве</small></h1>
+  <span id="status" class="pill">…</span>
+</header>
+
+<main>
+  <div class="tools">
+    <select id="chatSel" title="Чат"></select>
+    <button id="chatNew" class="small">＋ Новый</button><button id="chatMenu" class="small" title="Действия">⋯</button>
+    <select id="persona" title="Роль" style="max-width:190px"></select>
+  </div>
+  <div class="tools" id="customBox" style="display:none"><textarea id="customPrompt" rows="2" placeholder="Системная инструкция для модели…"></textarea></div>
+  <div class="modelbar">
+    <select id="chatModel"></select>
+    <button id="chatLoad" class="primary">Запустить</button>
+    <button id="chatUnload" class="ghost danger" title="Выгрузить">⏏</button>
+  </div>
+  <div id="chatLog" class="log"></div>
+  <div class="composer">
+    <textarea id="chatInput" rows="1" placeholder="Напишите сообщение…"></textarea>
+    <button id="chatSend" class="primary send" title="Отправить">➤</button>
+  </div>
+</main>
+
+<nav>
+  <button id="navChat" class="active"><b>💬</b>Чат</button>
+  <button id="navStudio"><b>🛠</b>Студия</button>
+  <button id="navModels"><b>📦</b>Модели</button>
+</nav>
+<div id="scrim" class="scrim"></div>
+
+<!-- ШТОРКА: модели -->
+<aside id="models" class="sheet left">
+  <header><h2>📦 Модели</h2><button class="ghost" data-close>✕</button></header>
+  <div class="body">
+    <div class="stat"><div><b id="stCount">0</b><span class="dim">моделей</span></div><div><b id="stSize">0</b><span class="dim">занято</span></div></div>
+    <div class="seg" id="srcTabs">
+      <button data-src="search" class="active">🔎 Поиск HF</button><button data-src="hf">Hugging Face</button><button data-src="github">GitHub</button><button data-src="url">Ссылка</button><button data-src="ext">Свой сервер</button>
+    </div>
+
+    <div id="src-search">
+      <div class="row"><input class="grow" id="qText" placeholder="Например: qwen coder, llama, phi, whisper…"><button id="qGo" class="primary">Найти</button></div>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="qGguf" checked style="width:auto;min-height:0"> только GGUF (запускаются на телефоне и ПК)</label>
+      <div id="qRes" class="card hidden"></div>
+    </div>
+
+    <div id="src-hf" class="hidden">
+      <label>Репозиторий (owner/name)</label>
+      <div class="row"><input class="grow" id="hfRepo" placeholder="Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF"><button id="hfList">Файлы</button></div>
+      <label>Токен HF (для закрытых моделей, не сохраняется)</label><input id="hfToken" type="password">
+      <div id="hfFiles" class="files hidden"></div>
+      <div id="hfActs" class="row hidden" style="margin-top:8px"><button data-sel="all">Выбрать всё</button><button data-sel="none">Снять</button><button data-sel="gguf">Один GGUF (Q4_K_M)</button></div>
+      <div class="row" style="margin-top:10px"><select id="hfKind" class="grow"></select><button id="hfGet" class="primary">Скачать</button></div>
+    </div>
+
+    <div id="src-github" class="hidden">
+      <label>Репозиторий с релизами (owner/name)</label>
+      <div class="row"><input class="grow" id="ghRepo" placeholder="owner/name"><button id="ghList">Релизы</button></div>
+      <div id="ghFiles" class="files hidden"></div>
+      <div class="row" style="margin-top:10px"><select id="ghKind" class="grow"></select><button id="ghGet" class="primary">Скачать</button></div>
+    </div>
+
+    <div id="src-url" class="hidden">
+      <label>Прямая ссылка на любой файл модели (.gguf, .safetensors, .onnx, .bin…)</label><input id="urlLink" placeholder="https://…">
+      <label>Название</label><input id="urlName">
+      <div class="row" style="margin-top:10px"><select id="urlKind" class="grow"></select><button id="urlGet" class="primary">Скачать</button></div>
+    </div>
+
+    <div id="src-ext" class="hidden">
+      <p class="dim">Подключите уже запущенный OpenAI-совместимый сервер: Ollama (<code>http://IP:11434/v1</code>), LM Studio (<code>:1234/v1</code>), vLLM и т.д. Так можно использовать модели любого формата, в том числе с компьютера в вашей сети.</p>
+      <label>Название</label><input id="extName">
+      <label>Base URL</label><input id="extUrl" value="http://localhost:11434/v1">
+      <label>Имя модели на сервере</label><input id="extModel" placeholder="qwen2.5-coder:7b">
+      <div class="row" style="margin-top:10px"><select id="extKind" class="grow"><option value="chat">chat</option><option value="code">code</option></select><button id="extAdd" class="primary">Добавить</button></div>
+    </div>
+
+    <div id="dlMsg" class="dim" style="margin-top:8px"></div>
+    <h3>Загрузки</h3><div id="downloads" class="dim">Нет активных загрузок</div>
+    <h3>Установленные</h3><div id="installed"></div>
+  </div>
+</aside>
+
+<!-- ШТОРКА: студия -->
+<aside id="studio" class="sheet right">
+  <header><h2>🛠 Студия</h2><button class="ghost" data-close>✕</button></header>
+  <div class="body">
+    <div class="seg" id="studioTabs"><button data-tab="code" class="active">⌨️ Код</button><button data-tab="image">🎨 Изображения</button></div>
+
+    <div id="tab-code">
+      <div class="row"><select class="grow" id="codeModel"></select><button id="codeLoad" class="primary">Запустить</button><button id="codeUnload" class="ghost danger">⏏</button></div>
+      <p class="dim">Лучше всего — модель вида «code» (Qwen2.5-Coder, DeepSeek-Coder…). Подойдёт и обычная чат-модель.</p>
+      <label>Язык</label><input id="codeLang" value="Python">
+      <label>Код (необязательно)</label><textarea id="codeSrc" rows="6" spellcheck="false" style="font-family:ui-monospace,Menlo,monospace;font-size:13px"></textarea>
+      <label>Задача</label><textarea id="codeTask" rows="3" placeholder="Что нужно сделать?"></textarea>
+      <div class="chips" style="justify-content:flex-start" id="codeChips"></div>
+      <div class="row" style="margin-top:12px"><button id="codeRun" class="primary grow">Выполнить</button><button id="codeClear">Очистить</button></div>
+      <div id="codeOut"></div>
+    </div>
+
+    <div id="tab-image" class="hidden">
+      <p id="imgWarn" class="card dim hidden"></p>
+      <label>Модель изображений</label><select id="imgModel"></select>
+      <label>Промпт</label><textarea id="imgPrompt" rows="3" placeholder="Опишите картинку…"></textarea>
+      <label>Негативный промпт</label><input id="imgNeg">
+      <div class="row">
+        <div style="width:84px"><label>Шаги</label><input id="imgSteps" type="number" value="25"></div>
+        <div style="width:96px"><label>Ширина</label><input id="imgW" type="number" value="512" step="64"></div>
+        <div style="width:96px"><label>Высота</label><input id="imgH" type="number" value="512" step="64"></div>
+        <div style="width:120px"><label>Seed</label><input id="imgSeed" type="number" placeholder="случайный"></div>
+      </div>
+      <div class="row" style="margin-top:12px"><button id="imgRun" class="primary grow">Сгенерировать</button></div>
+      <p id="imgState" class="dim"></p><div id="imgOut"></div>
+    </div>
+  </div>
+</aside>
+
+<script>
+const $=id=>document.getElementById(id);
+const api=async(url,opt={})=>{const r=await fetch(url,{headers:{'Content-Type':'application/json'},...opt});let d=null;try{d=await r.json()}catch{}
+  if(!r.ok)throw new Error((d&&d.detail)||r.statusText);return d};
+const post=(u,b)=>api(u,{method:'POST',body:JSON.stringify(b||{})});
+const el=(tag,props={},...kids)=>{const e=Object.assign(document.createElement(tag),props);kids.forEach(k=>e.append(k));return e};
+const fmt=n=>n>=1e9?(n/1e9).toFixed(2)+' ГБ':n>=1e6?(n/1e6).toFixed(1)+' МБ':n>=1e3?(n/1e3).toFixed(0)+' КБ':(n||0)+' Б';
+const num=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'k':n;
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+let models=[],status={slots:{chat:{},code:{}}};
+
+/* ---------- шторки и навигация ---------- */
+let openSheet=null;
+function sheet(id){openSheet=id;['models','studio'].forEach(s=>$(s).classList.toggle('open',s===id));$('scrim').classList.toggle('show',!!id);
+  $('navChat').classList.toggle('active',!id);$('navModels').classList.toggle('active',id==='models');$('navStudio').classList.toggle('active',id==='studio')}
+$('navChat').onclick=()=>sheet(null);$('navModels').onclick=()=>sheet('models');$('navStudio').onclick=()=>sheet('studio');
+$('scrim').onclick=()=>sheet(null);document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>sheet(null));
+window.kiraBack=()=>{if(openSheet){sheet(null);return true}return false};
+function tabs(box,attr,prefix){$(box).onclick=e=>{const k=e.target.dataset[attr];if(!k)return;
+  $(box).querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b===e.target);$(prefix+b.dataset[attr]).classList.toggle('hidden',b!==e.target)})}}
+tabs('srcTabs','src','src-');tabs('studioTabs','tab','tab-');
+['hfKind','ghKind','urlKind'].forEach(id=>$(id).append(el('option',{value:'',textContent:'Тип: определить сам'}),...[['chat','Чат'],['code','Код'],['image','Изображения'],['other','Другое (только хранить)']].map(([v,t])=>el('option',{value:v,textContent:t}))));
+
+/* ---------- состояние ---------- */
+function fillSelect(id,list,sel){const s=$(id),prev=s.value;
+  s.replaceChildren(...(list.length?list.map(m=>el('option',{value:m.id,textContent:(m.id===sel?'● ':'')+m.name+' · '+m.kind})):[el('option',{value:'',textContent:'— нет моделей —'})]));
+  s.value=sel||prev||(list[0]&&list[0].id)||''}
+async function refresh(){
+  [models,status]=await Promise.all([api('/api/models'),api('/api/status')]);
+  const loaded=s=>(status.slots[s]||{}).model_id;
+  const on=loaded('chat')||loaded('code');$('status').textContent=on?'модель активна':(status.llama_server?'готово':'нет llama.cpp');$('status').classList.toggle('on',!!on);
+  fillSelect('chatModel',models.filter(m=>m.kind==='chat'||m.kind==='code'),loaded('chat'));
+  fillSelect('codeModel',[...models.filter(m=>m.kind==='code'),...models.filter(m=>m.kind==='chat')],loaded('code'));
+  fillSelect('imgModel',models.filter(m=>m.kind==='image'));
+  const w=$('imgWarn');w.classList.toggle('hidden',!!status.images);
+  w.textContent=status.platform==='android'?'На телефоне генерация изображений пока недоступна. Откройте настольную версию Kira Local — или подключите внешний сервер.':'Для генерации установите: pip install diffusers torch transformers accelerate safetensors';
+  $('stCount').textContent=models.length;$('stSize').textContent=fmt(models.reduce((a,m)=>a+(m.size||0),0));
+  const box=$('installed');box.replaceChildren();
+  if(!models.length)box.append(el('div',{className:'dim',textContent:'Пока пусто — найдите модель во вкладке «Поиск HF».'}));
+  models.forEach(m=>{const row=el('div',{className:'row'});
+    row.append(el('b',{className:'grow',textContent:m.name}),el('span',{className:'badge '+m.kind,textContent:m.kind}),el('span',{className:'badge',textContent:m.format}));
+    const sub=el('div',{className:'row dim'},el('span',{className:'grow',textContent:(m.size?fmt(m.size):'')+' · '+m.source}));
+    const del=el('button',{className:'ghost danger',textContent:'Удалить'});del.onclick=async()=>{if(confirm('Удалить '+m.name+'?')){await api('/api/models/'+m.id,{method:'DELETE'});refresh()}};
+    sub.append(del);box.append(el('div',{className:'card'},row,sub))});
+}
+async function loadSlot(slot,sel,btn){const id=$(sel).value;if(!id){sheet('models');return}
+  btn.disabled=true;const t=btn.textContent;btn.textContent='Запуск…';
+  try{await post(`/api/slots/${slot}/load`,{model_id:id,ctx:status.platform==='android'?2048:4096})}catch(e){alert(e.message)}btn.disabled=false;btn.textContent=t;refresh()}
+$('chatLoad').onclick=e=>loadSlot('chat','chatModel',e.target);$('codeLoad').onclick=e=>loadSlot('code','codeModel',e.target);
+$('chatUnload').onclick=async()=>{await post('/api/slots/chat/unload');refresh()};$('codeUnload').onclick=async()=>{await post('/api/slots/code/unload');refresh()};
+
+/* ---------- поиск и скачивание ---------- */
+const msg=t=>$('dlMsg').textContent=t;
+function fileList(box,items,pre){box.classList.remove('hidden');box.replaceChildren(...items.map(f=>el('label',{},el('input',{type:'checkbox',value:f.url||f.name,checked:!!(pre&&pre(f))}),el('span',{style:'flex:1;word-break:break-all',textContent:f.name}),el('span',{className:'dim',textContent:f.size?fmt(f.size):''}))))}
+const picked=box=>[...box.querySelectorAll('input:checked')].map(i=>i.value);
+const q4=x=>/q4_k_m.*\.gguf$/i.test(x.name)||/model_index\.json$/.test(x.name);
+async function hfFiles(repo){$('hfRepo').value=repo;try{msg('Загрузка списка файлов…');
+  const f=await api(`/api/hf/files?repo=${encodeURIComponent(repo)}`+($('hfToken').value?`&token=${encodeURIComponent($('hfToken').value)}`:''));
+  fileList($('hfFiles'),f,q4);$('hfActs').classList.remove('hidden');msg(f.length+' файлов. Для GGUF выберите один квант; для остальных моделей — «Выбрать всё».');
+  document.querySelector('[data-src=hf]').click()}catch(e){msg(e.message)}}
+$('hfList').onclick=()=>hfFiles($('hfRepo').value.trim());
+$('hfActs').onclick=e=>{const k=e.target.dataset.sel;if(!k)return;$('hfFiles').querySelectorAll('input').forEach(i=>{i.checked=k==='all'?true:k==='none'?false:q4({name:i.value})})};
+$('hfGet').onclick=()=>start({source:'hf',repo:$('hfRepo').value.trim(),files:picked($('hfFiles')),kind:$('hfKind').value||null,hf_token:$('hfToken').value||null});
+async function search(){const t=$('qText').value.trim();try{msg('Поиск…');const r=await api(`/api/hf/search?q=${encodeURIComponent(t)}&gguf=${$('qGguf').checked?1:0}`);
+  const box=$('qRes');box.classList.remove('hidden');box.replaceChildren(...(r.length?r.map(m=>{const h=el('div',{className:'hit'},el('b',{textContent:m.id}),el('span',{className:'dim',textContent:'⬇ '+num(m.downloads)+'  ♥ '+num(m.likes)}));h.onclick=()=>hfFiles(m.id);return h}):[el('div',{className:'dim',textContent:'Ничего не найдено'})]));msg('')}catch(e){msg(e.message)}}
+$('qGo').onclick=search;$('qText').onkeydown=e=>{if(e.key==='Enter')search()};
+$('ghList').onclick=async()=>{try{msg('Загрузка списка…');const f=await api(`/api/github/assets?repo=${encodeURIComponent($('ghRepo').value.trim())}`);
+  fileList($('ghFiles'),f.map(a=>({...a,name:`${a.tag}: ${a.name}`})));msg(f.length+' файлов в релизах')}catch(e){msg(e.message)}};
+$('ghGet').onclick=()=>start({source:'github',repo:$('ghRepo').value.trim(),urls:picked($('ghFiles')),kind:$('ghKind').value||null});
+$('urlGet').onclick=()=>start({source:'url',urls:[$('urlLink').value.trim()],name:$('urlName').value.trim()||null,kind:$('urlKind').value||null});
+async function start(b){try{await post('/api/downloads',b);msg('Загрузка началась ⬇');poll()}catch(e){msg(e.message)}}
+$('extAdd').onclick=async()=>{try{await post('/api/models/external',{name:$('extName').value.trim()||$('extModel').value,base_url:$('extUrl').value.trim(),remote_model:$('extModel').value.trim()||null,kind:$('extKind').value});msg('Добавлено ✓');refresh()}catch(e){msg(e.message)}};
+let polling=false;const speed={};
+async function poll(){if(polling)return;polling=true;
+  try{for(;;){const jobs=await api('/api/downloads');const box=$('downloads');box.replaceChildren();if(!jobs.length)box.textContent='Нет активных загрузок';
+    const now=Date.now();
+    jobs.slice().reverse().forEach(j=>{let info='';
+      if(j.status==='downloading'){const p=speed[j.id];if(p&&now>p.t){const v=(j.done-p.d)/((now-p.t)/1000);speed[j.id]={t:now,d:j.done,v:p.v?p.v*.6+v*.4:v}}else if(!p)speed[j.id]={t:now,d:j.done,v:0};
+        const v=speed[j.id].v;info=`${fmt(j.done)} / ${j.total?fmt(j.total):'?'}`+(v>0?` · ${fmt(v)}/с`+(j.total&&v>0?` · ~${Math.ceil((j.total-j.done)/v/60)} мин`:''):'')}
+      const st=el('span',{className:j.status==='done'?'ok':j.status==='error'?'err':'dim',textContent:j.status==='error'?j.error:j.status==='done'?'✓ готово':j.status==='cancelled'?'отменено':info||'ожидание'});
+      const row=el('div',{className:'row'},el('b',{className:'grow',textContent:j.name}),el('span',{className:'badge '+j.kind,textContent:j.kind}));
+      const card=el('div',{className:'card'},row,el('div',{className:'row'},st));
+      if(j.status==='downloading'||j.status==='queued'){const c=el('button',{textContent:'Отмена',className:'ghost danger'});c.onclick=()=>api('/api/downloads/'+j.id,{method:'DELETE'});card.lastChild.append(c);card.append(el('progress',{max:j.total||1,value:j.done||0}))}
+      box.append(card)});
+    if(!jobs.some(j=>j.status==='downloading'||j.status==='queued')){refresh();break}await new Promise(r=>setTimeout(r,1000))}}finally{polling=false}}
+
+/* ---------- стриминг ---------- */
+function renderRich(node,text){node.replaceChildren();text.split(/(```[\s\S]*?(?:```|$))/g).forEach(part=>{
+  if(part.startsWith('```')){const body=part.replace(/^```[^\n]*\n?/,'').replace(/```$/,'');const pre=el('pre',{},el('code',{textContent:body}));
+    const b=el('button',{className:'copy',textContent:'Копировать'});b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(body);b.textContent='✓'};pre.append(b);node.append(pre)}
+  else if(part)node.append(document.createTextNode(part))})}
+async function stream(slot,messages,onText,onStats){
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot,messages})});
+  if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||r.statusText)}
+  const rd=r.body.getReader(),dec=new TextDecoder();let buf='',full='',n=0;const t0=performance.now();
+  for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+    let i;while((i=buf.indexOf('\n'))>=0){const line=buf.slice(0,i).trim();buf=buf.slice(i+1);
+      if(!line.startsWith('data:'))continue;const d=line.slice(5).trim();if(d==='[DONE]')continue;
+      let j;try{j=JSON.parse(d)}catch{continue}if(j.error)throw new Error(j.error);const t=j.choices?.[0]?.delta?.content;
+      if(t){full+=t;n++;onText(full);if(onStats)onStats(n/((performance.now()-t0)/1000||1))}}}
+  return full}
+
+/* ---------- чаты ---------- */
+const PERSONAS={default:['Обычный ассистент','Ты дружелюбный и точный ассистент. Отвечай на языке пользователя, кратко и по делу.'],
+  tutor:['Репетитор','Ты терпеливый репетитор. Объясняй пошагово, простыми словами, приводи примеры и проверяй понимание вопросом в конце.'],
+  translator:['Переводчик','Ты профессиональный переводчик. Переводи текст пользователя между русским и английским, сохраняя стиль. Выводи только перевод.'],
+  editor:['Редактор текста','Ты редактор. Исправляй ошибки, улучшай стиль и ясность, сохраняя смысл. Покажи исправленный текст и кратко перечисли правки.'],
+  coder:['Программист','Ты старший программист. Давай рабочий код в блоках ``` и короткие пояснения. Учитывай крайние случаи.'],
+  custom:['Своя инструкция…','']};
+$('persona').replaceChildren(...Object.entries(PERSONAS).map(([k,v])=>el('option',{value:k,textContent:v[0]})));
+let chats=store.get('kira-chats',[]),cur=store.get('kira-cur',null);
+if(!chats.length){chats=[{id:Date.now(),title:'Новый чат',persona:'default',custom:'',messages:[]}];cur=chats[0].id}
+const chat=()=>chats.find(c=>c.id===cur)||chats[0];
+const save=()=>{store.set('kira-chats',chats);store.set('kira-cur',cur)};
+function renderChatList(){$('chatSel').replaceChildren(...chats.map(c=>el('option',{value:c.id,textContent:c.title,selected:c.id===cur})))}
+function sys(c){return c.persona==='custom'?c.custom:PERSONAS[c.persona][1]}
+function bubble(role,text,meta){const n=el('div',{className:'msg '+(role==='user'?'user':'')});const b=el('div',{className:'bub'});n.append(b);renderRich(b,text);if(meta)n.append(el('div',{className:'meta',textContent:meta}));$('chatLog').append(n);$('chatLog').scrollTop=1e9;return{b,n}}
+function renderChat(){const c=chat();$('persona').value=c.persona;$('customBox').style.display=c.persona==='custom'?'':'none';$('customPrompt').value=c.custom||'';
+  const log=$('chatLog');log.replaceChildren();
+  if(!c.messages.length){const e=el('div',{className:'empty'},el('div',{className:'big',textContent:'✨'}),el('div',{textContent:'Запустите модель и начните диалог. Всё работает локально.'}));
+    const chips=el('div',{className:'chips'});['Объясни, как работает нейросеть','Придумай идею для pet-проекта','Составь план тренировок на неделю'].forEach(t=>{const b=el('button',{className:'chip',textContent:t});b.onclick=()=>{$('chatInput').value=t;$('chatInput').focus()};chips.append(b)});e.append(chips);log.append(e)}
+  c.messages.forEach(m=>bubble(m.role,m.content,m.meta))}
+$('chatSel').onchange=e=>{cur=+e.target.value;save();renderChat()};
+$('chatNew').onclick=()=>{const c={id:Date.now(),title:'Новый чат',persona:chat().persona,custom:chat().custom,messages:[]};chats.unshift(c);cur=c.id;save();renderChatList();renderChat()};
+$('persona').onchange=e=>{chat().persona=e.target.value;save();renderChat()};$('customPrompt').oninput=e=>{chat().custom=e.target.value;save()};
+async function send(){const t=$('chatInput').value.trim();if(!t)return;const c=chat();$('chatInput').value='';autosize();
+  if(!c.messages.length){c.title=t.slice(0,32);renderChatList()}
+  c.messages.push({role:'user',content:t});if(c.messages.length===1)$('chatLog').replaceChildren();bubble('user',t);
+  const out=bubble('assistant','…');$('chatSend').disabled=true;
+  const history=[...(sys(c)?[{role:'system',content:sys(c)}]:[]),...c.messages.map(({role,content})=>({role,content}))];
+  try{let tps=0;const full=await stream('chat',history,x=>{renderRich(out.b,x);$('chatLog').scrollTop=1e9},v=>tps=v);
+    const meta=tps?`${tps.toFixed(1)} ток/с`:'';if(meta)out.n.append(el('div',{className:'meta',textContent:meta}));c.messages.push({role:'assistant',content:full,meta});save()}
+  catch(e){out.b.replaceChildren(el('span',{className:'err',textContent:e.message}));c.messages.pop();save()}
+  $('chatSend').disabled=false}
+$('chatSend').onclick=send;
+const autosize=()=>{const t=$('chatInput');t.style.height='46px';t.style.height=Math.min(t.scrollHeight,140)+'px'};
+$('chatInput').oninput=autosize;$('chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&window.innerWidth>700){e.preventDefault();send()}};
+$('chatMenu').onclick=()=>{const c=chat();const a=prompt('Введите: export — скопировать чат в Markdown, delete — удалить чат, rename — переименовать');
+  if(a==='export'){navigator.clipboard&&navigator.clipboard.writeText(c.messages.map(m=>`**${m.role==='user'?'Вы':'Модель'}:**\n\n${m.content}`).join('\n\n---\n\n'))}
+  else if(a==='delete'&&confirm('Удалить чат?')){chats=chats.filter(x=>x!==c);if(!chats.length)chats.push({id:Date.now(),title:'Новый чат',persona:'default',custom:'',messages:[]});cur=chats[0].id;save();renderChatList();renderChat()}
+  else if(a==='rename'){const n=prompt('Название',c.title);if(n){c.title=n;save();renderChatList()}}};
+
+/* ---------- студия: код ---------- */
+[['Объяснить','Объясни, что делает этот код, по шагам.'],['Найти баг','Найди ошибки в этом коде и исправь их.'],['Рефакторинг','Сделай рефакторинг: чище, читаемее, без изменения поведения.'],['Тесты','Напиши unit-тесты для этого кода.'],['Оптимизировать','Оптимизируй этот код по скорости и памяти.'],['Комментарии','Добавь понятные комментарии и docstring.']].forEach(([t,p])=>{
+  const b=el('button',{className:'chip',textContent:t});b.onclick=()=>{$('codeTask').value=p};$('codeChips').append(b)});
+$('codeRun').onclick=async()=>{const task=$('codeTask').value.trim();if(!task)return;const src=$('codeSrc').value.trim(),lang=$('codeLang').value.trim()||'код';
+  const sysm=`Ты опытный программист-ассистент. Язык: ${lang}. Отвечай кратко, код — в блоках \`\`\`. Отвечай на языке пользователя.`;
+  const user=src?`${task}\n\n\`\`\`\n${src}\n\`\`\``:task;
+  const out=$('codeOut');out.replaceChildren();const card=el('div',{className:'card'});out.append(card);card.textContent='…';$('codeRun').disabled=true;
+  try{await stream('code',[{role:'system',content:sysm},{role:'user',content:user}],x=>renderRich(card,x))}catch(e){card.replaceChildren(el('span',{className:'err',textContent:e.message}))}
+  $('codeRun').disabled=false};
+$('codeClear').onclick=()=>{$('codeOut').replaceChildren();$('codeSrc').value='';$('codeTask').value=''};
+/* ---------- студия: изображения ---------- */
+$('imgRun').onclick=async()=>{const id=$('imgModel').value;if(!id)return $('imgState').textContent='Нет модели изображений — скачайте её во вкладке «Модели».';
+  $('imgRun').disabled=true;$('imgState').textContent='Генерация… (первый запуск загружает модель)';
+  try{const seed=$('imgSeed').value;const r=await post('/api/image',{model_id:id,prompt:$('imgPrompt').value,negative:$('imgNeg').value,steps:+$('imgSteps').value,width:+$('imgW').value,height:+$('imgH').value,seed:seed===''?null:+seed});
+    $('imgOut').prepend(el('img',{className:'out',src:r.url}));$('imgState').textContent='Готово ✓'}catch(e){$('imgState').textContent=e.message}$('imgRun').disabled=false};
+
+renderChatList();renderChat();refresh();poll();
+</script>
+</body>
+</html>

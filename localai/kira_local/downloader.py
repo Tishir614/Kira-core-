@@ -65,6 +65,15 @@ class Downloads:
         r.raise_for_status()
         return [{"name": s["rfilename"], "size": s.get("size") or 0} for s in r.json().get("siblings", [])]
 
+    async def hf_search(self, query: str, gguf_only: bool) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"search": query, "sort": "downloads", "direction": -1, "limit": 20}
+        if gguf_only:
+            params["filter"] = "gguf"
+        async with self.client() as c:
+            r = await c.get(f"{HF}/api/models", params=params)
+        r.raise_for_status()
+        return [{"id": m.get("id") or m.get("modelId"), "downloads": m.get("downloads", 0), "likes": m.get("likes", 0), "task": m.get("pipeline_tag", "")} for m in r.json()]
+
     async def github_assets(self, repo: str) -> list[dict[str, Any]]:
         if not REPO_RE.match(repo):
             raise DownloadError("Ожидается repo вида owner/name")
