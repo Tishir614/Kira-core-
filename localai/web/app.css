@@ -107,3 +107,11 @@ pre .copy{position:absolute;top:6px;right:6px;border:0;background:#ffffff26;colo
 
 .pop .rowx{flex-wrap:wrap}.pop .btn.sm{flex:1}
 .stat b{font-size:16px;white-space:nowrap}
+
+.bub{white-space:normal}.msg.user .bub{white-space:pre-wrap}
+.bub p{margin:0 0 .6em}.bub p:last-child,.bub ul:last-child,.bub ol:last-child{margin-bottom:0}
+.bub ul,.bub ol{margin:.3em 0 .6em;padding-left:1.3em}.bub h3,.bub h4,.bub h5,.bub h6{font-family:var(--head);margin:.5em 0 .3em;line-height:1.2}
+.bub blockquote{margin:.4em 0;padding:2px 0 2px 10px;border-left:3px solid var(--line);color:var(--dim)}.bub hr{border:0;border-top:2px solid var(--line);opacity:.2}
+.bub a{color:inherit;font-weight:700}code.inl{background:var(--soft);padding:1px 5px;border-radius:5px;font:.9em ui-monospace,Menlo,Consolas,monospace}.msg.user code.inl{background:rgba(255,255,255,.22)}
+.duel-card{border:2px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0;background:var(--card);box-shadow:var(--shadow)}.duel-card .hd{display:flex;gap:8px;align-items:center;font-weight:700;margin-bottom:6px}
+pre{padding-top:34px}

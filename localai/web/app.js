@@ -30,9 +30,9 @@ const ILL={
 };
 
 /* ---------- навигация ---------- */
-const ROOTS=['home','chat','code','image','library','connect'];
+const ROOTS=['home','chat','code','image','duel','library','connect'];
 const TITLES={home:'Главная',chat:'Чат',code:'Код',image:'Изображения',library:'Профиль и модели',connect:'Аккаунты'};
-const MENU=[['home','box','Главная'],['chat','chat','Чат'],['code','code','Код'],['image','image','Изображения'],['library','user','Профиль и модели'],['connect','key','Аккаунты HF и GitHub']];
+const MENU=[['home','box','Главная'],['chat','chat','Чат'],['code','code','Код'],['image','image','Изображения'],['duel','bolt','Дуэль моделей'],['library','user','Профиль и модели'],['connect','key','Аккаунты HF и GitHub']];
 let stack=[],current=null;
 function show(v){$('chatPop').classList.add('hidden');document.querySelectorAll('.view').forEach(x=>x.classList.toggle('active',x.id==='v-'+v));current=v;closeMenu();if(onShow[v])onShow[v]()}
 function go(v,{root=false}={}){if(root||ROOTS.includes(v))stack=[v];else stack.push(v);show(v)}
@@ -113,6 +113,8 @@ onShow.connect=renderConnect;
 /* ---------- главная ---------- */
 let homeCache={};
 function renderHome(){const body=$('homeBody');body.replaceChildren();
+  const last=store.get('kira-last',null),lm=last&&models.find(m=>m.id===last.id);
+  if(lm&&!isLoaded(lm)&&lm.kind!=='image'&&lm.kind!=='other'){const b=el('button',{className:'btn',style:'margin-top:14px'},el('span',{textContent:'Продолжить с «'+lm.name+'»'}),icon('play'));b.onclick=()=>runModel(lm,b);body.append(b)}
   body.append(section('Рекомендуем для вас'));
   const tiles=el('div',{className:'tiles'});FAMS.forEach(f=>{const b=el('button',{},famTile(f),el('span',{textContent:f}));b.onclick=()=>openSearch(f,{src:'hf',chip:/FLUX|SDXL/.test(f)?'image':/Whisper/.test(f)?'all':'gguf'});tiles.append(b)});body.append(tiles);
   body.append(section('Быстрый старт'));
@@ -188,6 +190,7 @@ function renderDetail(){const a=detail.a,body=$('detailBody');if(!a)return;const
   if(a.options.length){body.append(el('h2',{className:'sec',textContent:a.options.length>1?'Вариант (квантизация)':'Что будет скачано'}));
     if(a.options.length>1)body.append(el('p',{className:'dim',style:'margin:-4px 0 8px',textContent:'Чем меньше число в названии — тем легче и быстрее, но качество ниже. Звёздочка — рекомендуемый.'}));
     const ob=el('div',{className:'opts'});a.options.forEach((x,i)=>{const b=el('button',{className:'opt'+(i===detail.opt?' on':'')},el('b',{textContent:x.label+(x.recommended?' ★':'')}),el('span',{textContent:(x.size?fmt(x.size):'размер неизвестен')+(x.note?' · '+x.note:'')}));b.onclick=()=>{detail.opt=i;renderDetail()};ob.append(b)});body.append(ob);
+    if(o&&o.size&&status.disk_free&&o.size+2e8>status.disk_free)body.append(el('div',{className:'note bad'},icon('box'),el('span',{textContent:`Не хватит места: нужно ≈ ${fmt(o.size)}, свободно ${fmt(status.disk_free)}. Выберите вариант меньше или удалите ненужные модели.`})));
     const f=KiraAnalyze.fit(o&&o.size,navigator.deviceMemory);if(f.level!=='unknown')body.append(el('div',{className:'note '+(f.level==='ok'?'good':f.level==='no'?'bad':'')},icon('bolt'),el('span',{textContent:f.text+(navigator.deviceMemory?` (память ≈ ${navigator.deviceMemory}+ ГБ по данным браузера)`:'')})));
     const kind=el('select',{style:'margin-top:12px'},...[['chat','Тип: чат'],['code','Тип: код'],['image','Тип: изображения'],['other','Тип: другое (только хранить)']].map(([v,t])=>el('option',{value:v,textContent:t,selected:v===detail.kind})));kind.onchange=()=>detail.kind=kind.value;body.append(kind)}
   const link=el('a',{href:a.url,target:'_blank',rel:'noopener',textContent:'Открыть на сайте →',style:'display:inline-block;margin-top:12px;color:var(--ink);font-weight:700;font-size:13px'});body.append(link);
@@ -219,7 +222,7 @@ async function pollDownloads(){if(polling)return;polling=true;
 function renderLibrary(){const p=displayProfile();const av=$('profAvatar');av.replaceChildren(p&&p.avatar?el('img',{src:p.avatar,alt:''}):document.createTextNode(initials(p?p.fullname:'Гость')));$('profName').textContent=p?p.fullname:'Гость';
   const body=$('libBody');const keepScroll=body.parentElement.scrollTop;body.replaceChildren();
   const total=models.reduce((a,m)=>a+(m.size||0),0);
-  body.append(el('div',{className:'cardx',style:'text-align:center;margin-top:8px'},el('b',{style:'font-size:16px',textContent:`${models.length} ${models.length%10===1&&models.length!==11?'модель':'моделей'} установлено`}),el('div',{className:'dim',textContent:'занято '+fmt(total)})));
+  body.append(el('div',{className:'cardx',style:'text-align:center;margin-top:8px'},el('b',{style:'font-size:16px',textContent:`${models.length} ${models.length%10===1&&models.length!==11?'модель':'моделей'} установлено`}),el('div',{className:'dim',textContent:'занято '+fmt(total)+(status.disk_free?' · свободно '+fmt(status.disk_free):'')})));
   const active=jobs.filter(j=>j.status==='downloading'||j.status==='queued');
   if(active.length){body.append(section('В процессе'));active.forEach(j=>{const pr=el('progress',{max:j.total||1,value:j.done||0});const c=el('button',{className:'playc',title:'Отмена'},icon('x'));c.onclick=()=>api('/api/downloads/'+j.id,{method:'DELETE'});
     body.append(el('div',{className:'cardx'},el('div',{className:'rowx'},famTile(KiraAnalyze.guessFamily(j.name)||j.name,true),el('div',{className:'grow'},el('div',{className:'t',textContent:j.name}),el('div',{className:'s',textContent:`${fmt(j.done)} / ${j.total?fmt(j.total):'?'}${j.speed>0?' · '+fmt(j.speed)+'/с':''}`})),c),pr))})}

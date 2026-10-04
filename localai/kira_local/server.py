@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import re
+import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator
@@ -14,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import imagegen
-from .config import outputs_dir
+from .config import models_dir, outputs_dir
 from .downloader import DownloadError, Downloads
 from .registry import KINDS, Registry, slugify
 from .runtime import Runtime, RuntimeError_
@@ -83,7 +84,7 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
-        return {**runtime.status(), "diffusers": imagegen.available(), "images": imagegen.available() or any(m.get("format") == "remote_image" for m in registry.list()), "platform": "desktop"}
+        return {**runtime.status(), "diffusers": imagegen.available(), "images": imagegen.available() or any(m.get("format") == "remote_image" for m in registry.list()), "platform": "desktop", "disk_free": shutil.disk_usage(models_dir()).free}
 
     # ----- модели -----
     @app.get("/api/models")

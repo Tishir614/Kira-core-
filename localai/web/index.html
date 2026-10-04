@@ -97,7 +97,7 @@
 
 <!-- ===== чат ===== -->
 <section id="v-chat" class="view" data-title="чат">
-  <div class="mini"><select id="chatSel" class="grow"></select><button class="btn sm out" id="chatNew"><svg class="i"><use href="#i-plus"/></svg></button><button class="btn sm out" id="chatMenu"><svg class="i"><use href="#i-gear"/></svg></button></div>
+  <div class="mini"><select id="chatSel" class="grow"></select><button class="btn sm out" id="chatFind" title="Поиск по чатам"><svg class="i"><use href="#i-search"/></svg></button><button class="btn sm out" id="chatNew"><svg class="i"><use href="#i-plus"/></svg></button><button class="btn sm out" id="chatMenu"><svg class="i"><use href="#i-gear"/></svg></button></div>
   <div class="mini"><select id="chatModel" class="grow"></select><button class="btn sm" id="chatLoad">Запустить</button></div>
   <div class="chatlog" id="chatLog"></div>
   <div class="composer">
@@ -128,6 +128,18 @@
     <div class="chips" id="codeChips" style="margin-top:8px"></div>
     <div class="rowx"><button class="btn center grow" id="codeRun"><span>Выполнить</span></button><button class="btn out sm" id="codeClear">Очистить</button></div>
     <div id="codeOut"></div>
+  </div>
+</section>
+
+<!-- ===== дуэль моделей ===== -->
+<section id="v-duel" class="view" data-title="дуэль моделей">
+  <div class="scroll">
+    <p class="dim" style="margin-top:8px">Задайте один вопрос двум моделям сразу и сравните ответы и скорость. Запустите одну модель на экране «Чат», другую — на экране «Код» (подойдёт любая). На телефоне две модели сразу требуют много памяти.</p>
+    <div class="stats" style="margin-top:6px"><div class="stat"><b id="duelA" style="font-size:13px;white-space:normal">—</b><hr><span>слот «Чат»</span></div><div class="stat"><b id="duelB" style="font-size:13px;white-space:normal">—</b><hr><span>слот «Код»</span></div></div>
+    <textarea id="duelQ" rows="3" placeholder="Ваш вопрос обеим моделям…"></textarea>
+    <div class="rowx" style="margin-top:10px"><button class="btn center grow" id="duelRun"><span>Спросить обоих</span></button></div>
+    <div id="duelOut"></div>
+    <h2 class="sec">Таблица побед</h2><div id="duelBoard" class="dim">Голосуйте за лучший ответ — здесь появится рейтинг ваших моделей.</div>
   </div>
 </section>
 
@@ -172,6 +184,7 @@
 
 <script src="/analyze.js"></script>
 <script src="/hub.js"></script>
+<script src="/md.js"></script>
 <script src="/app.js"></script>
 <script src="/studio.js"></script>
 </body>

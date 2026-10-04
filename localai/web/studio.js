@@ -15,10 +15,10 @@ async function stream(slot,messages,onText,onStats,signal,extra={}){
       let j;try{j=JSON.parse(d)}catch{continue}if(j.error)throw new Error(j.error);const t=j.choices?.[0]?.delta?.content;
       if(t){full+=t;n++;onText(full);if(onStats)onStats(n/((performance.now()-t0)/1000||1))}}}
   return full}
-function renderRich(node,text){node.replaceChildren();text.split(/(```[\s\S]*?(?:```|$))/g).forEach(part=>{
+function renderRich(node,text,md=true){node.replaceChildren();text.split(/(```[\s\S]*?(?:```|$))/g).forEach(part=>{
   if(part.startsWith('```')){const body=part.replace(/^```[^\n]*\n?/,'').replace(/```$/,'');const pre=el('pre',{},el('code',{textContent:body}));
     const b=el('button',{className:'copy',textContent:'Копировать'});b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(body);b.textContent='✓'};pre.append(b);node.append(pre)}
-  else if(part)node.append(document.createTextNode(part))})}
+  else if(part){if(md&&window.KiraMd)KiraMd.render(node,part);else node.append(document.createTextNode(part))}})}
 const typing=()=>el('span',{className:'typing'},el('i'),el('i'),el('i'));
 
 /* ---------- выбор моделей ---------- */
@@ -54,7 +54,7 @@ const save=()=>{store.set('kira-chats',chats);store.set('kira-cur',cur)};
 const sys=c=>c.persona==='custom'?c.custom:PERSONAS[c.persona]?.[1]||'';
 function renderChatList(){$('chatSel').replaceChildren(...chats.map(c=>el('option',{value:c.id,textContent:c.title,selected:c.id===cur})))}
 function bubble(role,text,meta){const user=role==='user';const b=el('div',{className:'bub'});const col=el('div',{className:'col'},b);const n=el('div',{className:'msg '+(user?'user':'')},col);
-  if(text)renderRich(b,text);else b.append(typing());if(meta)col.append(el('div',{className:'meta',textContent:meta}));$('chatLog').append(n);$('chatLog').scrollTop=1e9;return{b,col}}
+  if(text)renderRich(b,text,!user);else b.append(typing());if(meta)col.append(el('div',{className:'meta',textContent:meta}));$('chatLog').append(n);$('chatLog').scrollTop=1e9;return{b,col}}
 function renderChat(){const c=chat();$('persona').value=c.persona;$('customPrompt').classList.toggle('hidden',c.persona!=='custom');$('customPrompt').value=c.custom||'';
   const log=$('chatLog');log.replaceChildren();
   if(!c.messages.length){const e=el('div',{className:'hero-empty'});e.innerHTML=ILL.robot;e.append(el('h3',{textContent:'чем помочь?'}),el('div',{textContent:'Запустите модель и начните диалог. Всё работает локально.'}));
@@ -166,3 +166,28 @@ $('lightbox').onclick=e=>{if(e.target.id==='lightbox')$('lightbox').classList.ad
 /* ---------- старт ---------- */
 onShow.chat=()=>{renderChat()};
 renderChatList();renderChat();onRefresh();
+
+/* ---------- поиск по чатам ---------- */
+$('chatFind').onclick=()=>{const lb=$('lightbox');lb.classList.remove('hidden');
+  const inp=el('input',{placeholder:'Найти в сообщениях…',style:'max-width:480px'}),list=el('div',{style:'width:100%;max-width:480px;max-height:55vh;overflow:auto'});
+  const close=el('button',{className:'btn sm',textContent:'Закрыть'});close.onclick=()=>lb.classList.add('hidden');
+  const draw=()=>{const q=inp.value.trim().toLowerCase();list.replaceChildren();if(q.length<2)return;let n=0;
+    for(const c of chats)for(let i=0;i<c.messages.length;i++){const m=c.messages[i],k=m.content.toLowerCase().indexOf(q);if(k<0)continue;if(++n>30)break;
+      const from=Math.max(0,k-30),snip=(from?'…':'')+m.content.slice(from,k+q.length+60).replace(/\s+/g,' ');
+      const b=el('button',{className:'btn sm',style:'width:100%;margin:5px 0;justify-content:flex-start;text-align:left;flex-direction:column;align-items:flex-start;gap:2px'},el('b',{textContent:c.title}),el('span',{style:'font-weight:400;font-size:12px;opacity:.8',textContent:snip}));
+      b.onclick=()=>{cur=c.id;save();renderChatList();renderChat();lb.classList.add('hidden');go('chat',{root:true})};list.append(b)}
+    if(!n)list.append(el('div',{style:'color:#ccc',textContent:'Ничего не найдено'}))};
+  inp.oninput=draw;lb.replaceChildren(el('h3',{style:'color:#fff;font-size:20px',textContent:'поиск по чатам'}),inp,list,close);inp.focus()};
+
+/* ---------- дуэль моделей ---------- */
+function duelNames(){const a=models.find(m=>m.id===loaded('chat')),b=models.find(m=>m.id===loaded('code'));$('duelA').textContent=a?a.name:'не запущена';$('duelB').textContent=b?b.name:'не запущена';return[a,b]}
+function drawBoard(){const v=store.get('kira-duels',{});const rows=Object.entries(v).sort((x,y)=>y[1]-x[1]);const bd=$('duelBoard');
+  bd.replaceChildren(...(rows.length?rows.map(([id,w])=>{const m=models.find(x=>x.id===id);return row(famTile(KiraAnalyze.guessFamily(m?m.name:id)||(m?m.name:id),true),m?m.name:id,'побед: '+w,el('b',{textContent:'🏆 '+w}))}):[document.createTextNode('Голосуйте за лучший ответ — здесь появится рейтинг ваших моделей.')]))}
+onShow.duel=()=>{duelNames();drawBoard()};
+$('duelRun').onclick=async()=>{const q=$('duelQ').value.trim();if(!q)return;const ms=duelNames();if(!ms[0]||!ms[1])return toast('Запустите по модели на экранах «Чат» и «Код»');
+  const out=$('duelOut');out.replaceChildren();$('duelRun').disabled=true;const slots=['chat','code'];
+  await Promise.all(ms.map(async(m,i)=>{const body=el('div',{className:'bub',style:'border:0;box-shadow:none;padding:0'},typing()),foot=el('div',{className:'meta'}),card=el('div',{className:'duel-card'},el('div',{className:'hd'},famTile(KiraAnalyze.guessFamily(m.name)||m.name,true),el('span',{textContent:m.name})),body,foot);out.append(card);
+    try{let tps=0,full='';full=await stream(slots[i],[{role:'user',content:q}],x=>renderRich(body,x),v=>tps=v);foot.textContent=tps?tps.toFixed(1)+' ток/с':'';
+      const vote=el('button',{className:'btn sm out',style:'margin-top:8px',textContent:'👍 Этот лучше'});vote.onclick=()=>{const d=store.get('kira-duels',{});d[m.id]=(d[m.id]||0)+1;store.set('kira-duels',d);out.querySelectorAll('.duel-card button').forEach(b=>b.disabled=true);toast('Голос засчитан: '+m.name);drawBoard()};card.append(vote)}
+    catch(e){body.replaceChildren(el('span',{style:'color:var(--bad)',textContent:e.message}))}}));
+  $('duelRun').disabled=false};

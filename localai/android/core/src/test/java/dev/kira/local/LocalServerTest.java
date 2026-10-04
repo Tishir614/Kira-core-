@@ -181,7 +181,7 @@ class LocalServerTest {
             String m = api("POST", "/api/models/external", "{\"name\":\"SD\",\"base_url\":\"http://127.0.0.1:" + sd.getAddress().getPort() + "\",\"kind\":\"image\",\"api\":\"a1111\"}");
             assertTrue(m.startsWith("200") && m.contains("remote_image"), m);
             String id = new JSONObject(m.substring(4)).getString("id");
-            assertTrue(api("GET", "/api/status", null).contains("\"images\":true"));
+            assertTrue(api("GET", "/api/status", null).contains("\"images\":true") && api("GET", "/api/status", null).contains("disk_free"));
             JSONObject job = new JSONObject(api("POST", "/api/image", "{\"model_id\":\"" + id + "\",\"prompt\":\"cat\",\"steps\":4,\"count\":2,\"seed\":7}").substring(4));
             JSONObject st = null;
             for (int i = 0; i < 100; i++) {

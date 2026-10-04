@@ -46,6 +46,7 @@ def test_guess_kind():
 async def test_download_load_chat_flow(data_dir, fake_llama):
     app = create_app(transport=httpx.MockTransport(hf_handler))
     async with client(app) as c:
+        assert (await c.get("/api/status")).json()["disk_free"] > 0
         assert (await c.get("/api/hf/files", params={"repo": "acme/tiny-GGUF"})).json() == [{"name": "tiny.Q4_K_M.gguf", "size": len(GGUF)}]
         assert (await c.get("/api/hf/search", params={"q": "tiny", "gguf": 1})).json()[0]["id"] == "acme/tiny-GGUF"
         job = (await c.post("/api/downloads", json={"source": "hf", "repo": "acme/tiny-GGUF", "files": ["tiny.Q4_K_M.gguf"]})).json()

@@ -104,7 +104,7 @@ public final class LocalServer extends NanoHTTPD {
             boolean remoteImages = false;
             org.json.JSONArray all = registry.list();
             for (int i = 0; i < all.length(); i++) if ("remote_image".equals(all.getJSONObject(i).optString("format"))) remoteImages = true;
-            return json(Response.Status.OK, runtime.status().put("images", remoteImages).put("diffusers", false));
+            return json(Response.Status.OK, runtime.status().put("images", remoteImages).put("diffusers", false).put("disk_free", cfg.modelsDir.getUsableSpace()));
         }
         if (m == Method.GET && path.equals("models")) return json(Response.Status.OK, registry.list());
         if (m == Method.DELETE && path.startsWith("models/")) {
