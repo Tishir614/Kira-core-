@@ -73,3 +73,9 @@ test('fit and analyze() with mocked fetch', async () => {
   assert.strictEqual(a.summary, 'Hello model');
   await assert.rejects(A.analyze('a/b', { fetch: async () => ({ ok: false, status: 404 }) }), /не найден/);
 });
+
+test('duplicate original/ weights are dropped when safetensors exist', () => {
+  const info = { pipeline_tag: 'text-generation', siblings: [{ rfilename: 'config.json', size: 1 }, { rfilename: 'model.safetensors', size: 6e9 }, { rfilename: 'original/consolidated.00.pth', size: 6e9 }, { rfilename: 'original/params.json', size: 1 }] };
+  const a = A.analyzeHf('o/Llama-3-3B', info, '');
+  assert.deepStrictEqual(a.options[0].files.map((f) => f.name).sort(), ['config.json', 'model.safetensors']);
+});

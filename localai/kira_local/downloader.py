@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 import httpx
 
 from .config import models_dir
-from .registry import Registry, guess_kind, slugify
+from .registry import Registry, guess_kind, stable_id
 
 HF = "https://huggingface.co"
 GH_API = "https://api.github.com"
@@ -114,7 +114,11 @@ class Downloads:
 
         chosen_kind = kind or guess_kind(title + " " + " ".join(str(p) for _, p in items), has_index)
         job_id = uuid.uuid4().hex[:10]
-        model_id = slugify(title)
+        model_id = stable_id(title, "|".join([source, repo or "", *[u for u, _ in items]]))
+        if self.registry.get(model_id):
+            raise DownloadError("Эта модель уже установлена")
+        if any(j["model_id"] == model_id and j["status"] in ("queued", "downloading") for j in self.jobs.values()):
+            raise DownloadError("Эта модель уже скачивается")
         job = {
             "id": job_id, "model_id": model_id, "name": title, "kind": chosen_kind, "source": source, "status": "queued", "error": None,
             "files": [{"name": str(p), "done": 0, "total": 0} for _, p in items], "done": 0, "total": 0,

@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import os
 import re
 import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any, AsyncIterator
+from urllib.parse import urlsplit
+from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from . import imagegen
 from .config import models_dir, outputs_dir
@@ -34,6 +35,7 @@ class DownloadReq(BaseModel):
 
 
 class LoadReq(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_id: str
     ctx: int = Field(4096, ge=256, le=131072)
     gpu_layers: int = Field(0, ge=0, le=999)
@@ -55,6 +57,7 @@ class ChatReq(BaseModel):
 
 
 class ImageReq(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
     model_id: str
     prompt: str = Field(min_length=1)
     negative: str = ""
@@ -66,7 +69,17 @@ class ImageReq(BaseModel):
     count: int = Field(1, ge=1, le=4)
 
 
-def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def _hostname(value: str) -> str:
+    try:
+        return (urlsplit("//" + value).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTransport | None = None, allow_any_host: bool = False) -> FastAPI:
     registry = registry or Registry()
     downloads = Downloads(registry, transport)
     runtime = Runtime(registry)
@@ -78,6 +91,18 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
         runtime.shutdown()
 
     app = FastAPI(title="Kira Local", lifespan=lifespan)
+
+    @app.middleware("http")
+    async def guard(request: Request, call_next: Any) -> Any:
+        # Защита от DNS-rebinding и CSRF: сервер без авторизации отвечает только на localhost и только своим страницам.
+        if not allow_any_host:
+            host = _hostname(request.headers.get("host", ""))
+            if host not in LOCAL_HOSTS:
+                return JSONResponse({"detail": "Недопустимый Host"}, status_code=403)
+            origin = request.headers.get("origin")
+            if origin and request.method not in ("GET", "HEAD", "OPTIONS") and _hostname(origin.split("://", 1)[-1]) != host:
+                return JSONResponse({"detail": "Чужой Origin"}, status_code=403)
+        return await call_next(request)
 
     def hf_token(explicit: str | None) -> str | None:
         return explicit or os.environ.get("HF_TOKEN")

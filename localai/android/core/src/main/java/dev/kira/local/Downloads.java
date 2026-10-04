@@ -24,13 +24,16 @@ public final class Downloads {
     static final class FileState {
         final String name;
         final String url;
-        final File dest;
+        File dest;
         volatile long done, total;
 
-        FileState(String name, String url, File dest) {
+        FileState(String name, String url) {
             this.name = name;
             this.url = url;
-            this.dest = dest;
+        }
+
+        void destRebase(File folder) {
+            this.dest = new File(folder, name);
         }
     }
 
@@ -107,8 +110,6 @@ public final class Downloads {
         if (token.isEmpty()) token = System.getenv("HF_TOKEN") == null ? "" : System.getenv("HF_TOKEN");
         Job job = new Job();
         job.source = source;
-        job.modelId = Registry.slugify(name.isEmpty() ? (repo.isEmpty() ? "model" : repo.substring(repo.indexOf('/') + 1)) : name);
-        File folder = new File(cfg.modelsDir, job.modelId);
         Map<String, String> headers = new HashMap<>();
         boolean hasIndex = false;
         List<String> rels = new ArrayList<>();
@@ -120,7 +121,7 @@ public final class Downloads {
                 for (int i = 0; i < files.length(); i++) {
                     String rel = safeRel(files.getString(i));
                     rels.add(rel);
-                    job.files.add(new FileState(rel, cfg.hfBase + "/" + repo + "/resolve/main/" + rel, new File(folder, rel)));
+                    job.files.add(new FileState(rel, cfg.hfBase + "/" + repo + "/resolve/main/" + rel));
                     if (rel.endsWith("model_index.json")) hasIndex = true;
                 }
                 job.name = name.isEmpty() ? repo.substring(repo.indexOf('/') + 1) : name;
@@ -136,7 +137,7 @@ public final class Downloads {
                     String fname = path.substring(path.lastIndexOf('/') + 1);
                     String rel = safeRel(fname);
                     rels.add(rel);
-                    job.files.add(new FileState(rel, u, new File(folder, rel)));
+                    job.files.add(new FileState(rel, u));
                 }
                 job.name = name.isEmpty() ? (repo.isEmpty() ? rels.get(0) : repo.substring(repo.indexOf('/') + 1)) : name;
                 break;
@@ -145,8 +146,16 @@ public final class Downloads {
                 throw new IllegalArgumentException("source: hf | github | url");
         }
         if (!kind.isEmpty() && !Registry.KINDS.contains(kind)) throw new IllegalArgumentException("kind: " + Registry.KINDS);
+        StringBuilder key = new StringBuilder(source).append('|').append(repo);
+        for (FileState f : job.files) key.append('|').append(f.url);
+        job.modelId = Registry.stableId(job.name, key.toString());
+        File folder = new File(cfg.modelsDir, job.modelId);
+        for (FileState f : job.files) f.destRebase(folder);
+        if (registry.get(job.modelId) != null) throw new IllegalArgumentException("Эта модель уже установлена");
         job.kind = kind.isEmpty() ? Registry.guessKind(job.name + " " + String.join(" ", rels), hasIndex) : kind;
         synchronized (this) {
+            for (Job other : jobs.values())
+                if (other.modelId.equals(job.modelId) && (other.status.equals("queued") || other.status.equals("downloading"))) throw new IllegalArgumentException("Эта модель уже скачивается");
             jobs.put(job.id, job);
         }
         final Job j = job;

@@ -13,8 +13,11 @@ def main() -> None:
     p.add_argument("--no-browser", action="store_true")
     a = p.parse_args()
     if not a.no_browser:
-        webbrowser.open(f"http://{a.host}:{a.port}")
-    uvicorn.run(create_app(), host=a.host, port=a.port)
+        webbrowser.open(f"http://{a.host if a.host not in ('0.0.0.0', '::') else '127.0.0.1'}:{a.port}")
+    loopback = a.host in ("127.0.0.1", "localhost", "::1")
+    if not loopback:
+        print("ВНИМАНИЕ: сервер открыт в сеть без авторизации — любой в вашей сети сможет управлять моделями и файлами.")
+    uvicorn.run(create_app(allow_any_host=not loopback), host=a.host, port=a.port)
 
 
 main()

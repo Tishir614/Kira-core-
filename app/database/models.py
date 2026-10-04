@@ -24,7 +24,7 @@ class Status(str, enum.Enum):
 
 
 class GateResult(str, enum.Enum):
-    PASS = "PASS"
+    PASS = "PASS"  # nosec B105 - статус проверки, не пароль
     WARNING = "WARNING"
     FAIL = "FAIL"
 

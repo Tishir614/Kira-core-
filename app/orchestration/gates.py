@@ -4,7 +4,7 @@ from enum import StrEnum
 
 
 class GateStatus(StrEnum):
-    PASS = "PASS"
+    PASS = "PASS"  # nosec B105 - статус проверки, не пароль
     WARNING = "WARNING"
     FAIL = "FAIL"
 

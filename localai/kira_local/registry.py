@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -23,6 +24,12 @@ def guess_kind(name: str, has_model_index: bool = False) -> str:
     if re.search(r"coder|code|starcoder|deepseek-coder|codestral", low):
         return "code"
     return "chat"
+
+
+def stable_id(name: str, key: str) -> str:
+    """Один и тот же источник + набор файлов → один и тот же id (поэтому докачка и проверка «уже установлена» работают)."""
+    slug = re.sub(r"[^a-zA-Z0-9._-]+", "-", name).strip("-.")[:50] or "model"
+    return f"{slug}-{hashlib.sha1(key.encode('utf-8'), usedforsecurity=False).hexdigest()[:6]}"
 
 
 def slugify(name: str) -> str:

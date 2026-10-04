@@ -33,6 +33,21 @@ public final class Registry {
         return "chat";
     }
 
+    /** Один и тот же источник и набор файлов дают один и тот же id — поэтому работают докачка и проверка «уже установлена». */
+    public static String stableId(String name, String key) {
+        String s = name.replaceAll("[^a-zA-Z0-9._-]+", "-").replaceAll("^[-.]+|[-.]+$", "");
+        if (s.length() > 50) s = s.substring(0, 50);
+        if (s.isEmpty()) s = "model";
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-1").digest(key.getBytes(StandardCharsets.UTF_8));
+            StringBuilder h = new StringBuilder();
+            for (int i = 0; i < 3; i++) h.append(String.format("%02x", d[i]));
+            return s + "-" + h;
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     public static String slugify(String name) {
         String s = name.replaceAll("[^a-zA-Z0-9._-]+", "-").replaceAll("^[-.]+|[-.]+$", "");
         if (s.length() > 60) s = s.substring(0, 60);

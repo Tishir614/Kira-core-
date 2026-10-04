@@ -23,6 +23,8 @@ async def start(message: Message, state: FSMContext):
 
 @router.message(F.text == "🖼 Изображение → 3D")
 async def image_to_3d_start(message: Message, state: FSMContext):
+    if message.from_user is None:
+        return
     project_id = await BackendClient(get_settings().backend_url).create_project(message.from_user.id, "Изображение → 3D")
     await state.set_state(ImageTo3DFlow.references)
     await state.update_data(project_id=project_id, images=[])
@@ -31,6 +33,8 @@ async def image_to_3d_start(message: Message, state: FSMContext):
 
 @router.message(ImageTo3DFlow.references, F.photo | F.document)
 async def image_reference(message: Message, state: FSMContext, bot: Bot):
+    if message.from_user is None:
+        return
     document = message.document
     photo = message.photo[-1] if message.photo else None
     if not document and not photo:
@@ -41,8 +45,8 @@ async def image_reference(message: Message, state: FSMContext, bot: Bot):
         return
     if document:
         file_id = document.file_id
-        original = document.file_name
-        mime = document.mime_type
+        original = document.file_name or f"{document.file_id}.bin"
+        mime = document.mime_type or "application/octet-stream"
         file_size = document.file_size
     else:
         if photo is None:
@@ -85,12 +89,13 @@ async def capture_prompt(message: Message, state: FSMContext):
 
 @router.callback_query(ImageTo3DFlow.quality, F.data.startswith("i3d_quality:"))
 async def capture_quality(query: CallbackQuery, state: FSMContext):
-    quality = query.data.split(":", 1)[1]
+    quality = (query.data or "").split(":", 1)[-1]
     data = await state.get_data()
     task = await BackendClient(get_settings().backend_url).reconstruct(query.from_user.id, data["project_id"], data["prompt"], quality)
     await state.update_data(celery_task_id=task["task_id"])
     await state.set_state(ImageTo3DFlow.processing)
-    await query.message.edit_text("🔍 Анализ изображения запущен. Этапы показываются без выдуманных процентов.")
+    if isinstance(query.message, Message):
+        await query.message.edit_text("🔍 Анализ изображения запущен. Этапы показываются без выдуманных процентов.")
     await query.answer()
 
 
@@ -100,7 +105,7 @@ def message_user_id(query: CallbackQuery) -> int:
 
 @router.callback_query(F.data.startswith("i3d_review:"))
 async def review(query: CallbackQuery, state: FSMContext, bot: Bot):
-    action = query.data.split(":", 1)[1]
+    action = (query.data or "").split(":", 1)[-1]
     if action == "approve":
         data = await state.get_data()
         root = get_settings().projects_root / str(query.from_user.id) / data["project_id"]

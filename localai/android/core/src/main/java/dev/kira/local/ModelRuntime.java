@@ -69,6 +69,9 @@ public final class ModelRuntime {
                 throw new RuntimeFailure("Формат «" + fmt + "» нельзя запустить для чата. Нужен GGUF (или подключите внешний сервер).");
             }
             slot.modelId = modelId;
+        } catch (RuntimeFailure | RuntimeException e) {
+            unload(slotName); // не оставляем «полузагруженный» слот с чужим адресом
+            throw e;
         } finally {
             slot.loading = false;
         }

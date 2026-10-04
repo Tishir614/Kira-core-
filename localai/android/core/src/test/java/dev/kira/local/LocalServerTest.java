@@ -129,6 +129,8 @@ class LocalServerTest {
         assertEquals("gguf", model.getString("format"));
         assertArrayEquals(GGUF, Files.readAllBytes(Path.of(model.getString("path"))));
 
+        String dup = api("POST", "/api/downloads", "{\"source\":\"hf\",\"repo\":\"acme/tiny-GGUF\",\"files\":[\"tiny.Q4_K_M.gguf\"]}");
+        assertTrue(dup.startsWith("400") && dup.contains("уже установлена"), dup);
         assertTrue(api("POST", "/api/chat", "{\"slot\":\"chat\",\"messages\":[]}").startsWith("409"));
         String st = api("POST", "/api/slots/chat/load", "{\"model_id\":\"" + model.getString("id") + "\"}");
         assertTrue(st.startsWith("200"), st);

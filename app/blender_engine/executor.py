@@ -1,7 +1,18 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-from app.blender_engine.models import BlenderPlan
+from app.blender_engine.models import (
+    AddKeyframe,
+    BlenderPlan,
+    CreateCamera,
+    CreateLight,
+    CreateMaterial,
+    Export,
+    ImportModel,
+    ModifyMesh,
+    Render,
+    RenderSettings,
+)
 
 
 class BlenderPlanExecutor:
@@ -20,10 +31,10 @@ class BlenderPlanExecutor:
 
         for index, op in enumerate(plan.operations):
             self.log.info("blender_operation", extra={"operation": op.operation, "operation_index": index})
-            match op.operation:
-                case "import_model":
+            match op:
+                case ImportModel():
                     self._import(bpy, self.path(op.asset_key))
-                case "modify_mesh":
+                case ModifyMesh():
                     obj = bpy.data.objects.get(op.object_name)
                     if not obj or obj.type != "MESH":
                         raise RuntimeError(f"mesh not found: {op.object_name}")
@@ -37,21 +48,21 @@ class BlenderPlanExecutor:
                     if op.smooth:
                         for face in obj.data.polygons:
                             face.use_smooth = True
-                case "create_material":
+                case CreateMaterial():
                     mat = bpy.data.materials.new(op.name)
                     mat.diffuse_color = op.base_color
                     mat.metallic = op.metallic
                     mat.roughness = op.roughness
-                case "create_camera":
+                case CreateCamera():
                     bpy.ops.object.camera_add(location=op.position, rotation=op.rotation)
                     bpy.context.object.name = op.name
                     bpy.context.object.data.lens = op.focal_length
                     bpy.context.scene.camera = bpy.context.object
-                case "create_light":
+                case CreateLight():
                     bpy.ops.object.light_add(type=op.light_type, location=op.position, rotation=op.rotation)
                     bpy.context.object.name = op.name
                     bpy.context.object.data.energy = op.energy
-                case "set_render_settings":
+                case RenderSettings():
                     scene = bpy.context.scene
                     scene.render.engine = op.engine
                     scene.render.resolution_x = op.width
@@ -61,18 +72,18 @@ class BlenderPlanExecutor:
                     scene.render.resolution_percentage = 100
                     if op.engine == "CYCLES":
                         scene.cycles.samples = op.samples
-                case "add_keyframe":
+                case AddKeyframe():
                     target = bpy.data.objects.get(op.target)
                     if not target:
                         raise RuntimeError(f"target not found: {op.target}")
                     setattr(target, op.property, op.value if len(op.value) > 1 else op.value[0])
                     target.keyframe_insert(data_path=op.property, frame=op.frame)
-                case "render":
+                case Render():
                     output = self.path(op.output_key)
                     output.parent.mkdir(parents=True, exist_ok=True)
                     bpy.context.scene.render.filepath = str(output)
                     bpy.ops.render.render(animation=op.animation, write_still=not op.animation)
-                case "export":
+                case Export():
                     self._export(bpy, op.format, self.path(op.output_key))
                 case _:
                     raise RuntimeError(f"operation is validated but not enabled by this worker: {op.operation}")

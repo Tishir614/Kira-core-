@@ -17,8 +17,11 @@ public class ServerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && "STOP".equals(intent.getAction())) {
+            // Явная остановка: гасим модели и сервер и закрываем процесс, чтобы интерфейс не остался «мёртвым».
+            ServerHolder.stop();
             stopForeground(true);
             stopSelf();
+            android.os.Process.killProcess(android.os.Process.myPid());
             return START_NOT_STICKY;
         }
         NotificationManager nm = getSystemService(NotificationManager.class);

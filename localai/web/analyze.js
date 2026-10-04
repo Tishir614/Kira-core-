@@ -93,7 +93,7 @@
     }
     const junk = /\.(msgpack|h5|onnx_data|tflite)$|^(flax_model|tf_model|rust_model)|(^|\/)(openvino|onnx|coreml)\//i;
     const hasSt = files.some((f) => lower(f).endsWith('.safetensors'));
-    const keep = files.filter((f) => !junk.test(f.name) && !f.name.startsWith('.') && !(hasSt && /\.(bin|pt|pth|ckpt)$/i.test(f.name) && /pytorch_model|model\.(bin|pt)/i.test(f.name)));
+    const keep = files.filter((f) => !junk.test(f.name) && !f.name.startsWith('.') && !(hasSt && /(^|\/)(original\/|consolidated[^/]*\.pth$)/i.test(f.name)) && !(hasSt && /\.(bin|pt|pth|ckpt)$/i.test(f.name) && /pytorch_model|model\.(bin|pt)/i.test(f.name)));
     if (diffusers) {
       const sub = keep.filter((f) => !/(^|\/)(?!model_index).*\.(ckpt)$/i.test(f.name));
       opts.push({ id: 'all', label: 'Весь пакет diffusers', files: sub, size: sub.reduce((a, f) => a + (f.size || 0), 0), note: 'модель целиком', recommended: true });

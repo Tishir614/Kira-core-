@@ -13,7 +13,6 @@ import shutil
 import socket
 import subprocess
 import time
-from pathlib import Path
 from typing import Any
 
 import httpx
@@ -81,6 +80,9 @@ class Runtime:
             else:
                 raise RuntimeError_(f"Формат {model.get('format')!r} не поддерживается для чата. Нужен GGUF.")
             slot.model_id = model_id
+        except BaseException:
+            self.unload(slot_name)  # не оставляем «полузагруженный» слот с чужим адресом
+            raise
         finally:
             slot.loading = False
 
@@ -89,18 +91,19 @@ class Runtime:
         if not binary:
             raise RuntimeError_("llama-server не найден. Установите llama.cpp (https://github.com/ggml-org/llama.cpp/releases), добавьте в PATH или задайте LLAMA_SERVER_BIN.")
         port = _free_port()
-        log = (data_dir() / f"llama-{port}.log").open("wb")
-        slot.proc = subprocess.Popen(  # noqa: S603 — аргументы списком, без shell
-            [binary, "-m", model["path"], "--host", "127.0.0.1", "--port", str(port), "-c", str(ctx), "-ngl", str(gpu_layers)],
-            stdout=log, stderr=subprocess.STDOUT,
-        )
+        log_path = data_dir() / f"llama-{port}.log"
+        with log_path.open("wb") as log:
+            slot.proc = subprocess.Popen(  # noqa: S603 — аргументы списком, без shell
+                [binary, "-m", model["path"], "--host", "127.0.0.1", "--port", str(port), "-c", str(ctx), "-ngl", str(gpu_layers)],
+                stdout=log, stderr=subprocess.STDOUT,
+            )
         slot.base_url, slot.model_name = f"http://127.0.0.1:{port}/v1", None
         deadline = time.monotonic() + 300
         async with httpx.AsyncClient(timeout=3) as c:
             while time.monotonic() < deadline:
                 if slot.proc.poll() is not None:
                     self.unload_proc(slot)
-                    raise RuntimeError_(f"llama-server завершился (см. лог {log.name})")
+                    raise RuntimeError_(f"llama-server завершился (см. лог {log_path.name})")
                 try:
                     if (await c.get(f"http://127.0.0.1:{port}/health")).status_code == 200:
                         return

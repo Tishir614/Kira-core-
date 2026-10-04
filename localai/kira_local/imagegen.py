@@ -96,7 +96,7 @@ class ImageService:
 
     def submit(self, model: dict[str, Any], params: dict[str, Any]) -> Job:
         if params.get("seed") is None:
-            params["seed"] = random.randint(0, 2**31 - 1)
+            params["seed"] = random.randint(0, 2**31 - 1)  # noqa: S311 — seed изображения, не криптография
         job = Job(params)
         self.jobs[job.id] = job
         for old in list(self.jobs)[:-30]:

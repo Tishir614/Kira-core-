@@ -25,3 +25,17 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
         with: {context: ., push: false, tags: kira-animator:test}
+  localai:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.12', cache: pip}
+      - uses: actions/setup-node@v4
+        with: {node-version: '20'}
+      - run: pip install -r localai/requirements.txt pytest pytest-asyncio
+      - name: Kira Local backend tests
+        working-directory: localai
+        run: python -m pytest -q
+      - name: Kira Local UI logic tests
+        run: node --test localai/tests/analyze.test.js localai/tests/hub.test.js localai/tests/md.test.js

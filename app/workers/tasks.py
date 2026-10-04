@@ -1,6 +1,7 @@
 import asyncio, uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 from app.workers.celery_app import celery_app
 
 
@@ -71,7 +72,7 @@ async def _run_image_to_3d(project_id: str, user_id: int, image_paths: list[str]
     await _set_status(project_id, "awaiting_review", "preview_review")
     bot = Bot(settings.telegram_bot_token)
     try:
-        media = [
+        media: list[Any] = [
             InputMediaPhoto(media=FSInputFile(path), caption="Скрытые стороны восстановлены приблизительно." if len(image_paths) == 1 and i == 0 else None)
             for i, path in enumerate(artifacts.previews)
         ]

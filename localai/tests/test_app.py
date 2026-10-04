@@ -22,7 +22,7 @@ def hf_handler(request: httpx.Request) -> httpx.Response:
 
 
 def client(app):
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t")
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://localhost")
 
 
 def test_safe_relpath_and_urls():
@@ -49,7 +49,7 @@ async def test_download_load_chat_flow(data_dir, fake_llama):
         assert (await c.get("/api/status")).json()["disk_free"] > 0
         assert (await c.get("/api/hf/files", params={"repo": "acme/tiny-GGUF"})).json() == [{"name": "tiny.Q4_K_M.gguf", "size": len(GGUF)}]
         assert (await c.get("/api/hf/search", params={"q": "tiny", "gguf": 1})).json()[0]["id"] == "acme/tiny-GGUF"
-        job = (await c.post("/api/downloads", json={"source": "hf", "repo": "acme/tiny-GGUF", "files": ["tiny.Q4_K_M.gguf"]})).json()
+        await c.post("/api/downloads", json={"source": "hf", "repo": "acme/tiny-GGUF", "files": ["tiny.Q4_K_M.gguf"]})
         for _ in range(50):
             jobs = (await c.get("/api/downloads")).json()
             if jobs[0]["status"] in ("done", "error"):
@@ -132,3 +132,48 @@ async def test_remote_image_flow_and_gallery(data_dir):
             assert len((await c.get("/api/gallery")).json()) == 1
     finally:
         ig.httpx.Client = real_client
+
+
+async def test_host_and_origin_guard(data_dir):
+    app = create_app()
+    async with client(app) as c:
+        assert (await c.get("/api/models")).status_code == 200
+        assert (await c.get("/api/models", headers={"Host": "evil.example"})).status_code == 403
+        assert (await c.post("/api/slots/chat/unload", headers={"Origin": "https://evil.example"})).status_code == 403
+        assert (await c.post("/api/slots/chat/unload", headers={"Origin": "http://localhost:8765"})).status_code == 200
+    open_app = create_app(allow_any_host=True)
+    async with client(open_app) as c:
+        assert (await c.get("/api/models", headers={"Host": "192.168.0.5:8765"})).status_code == 200
+
+
+async def test_stable_ids_resume_and_duplicates(data_dir, fake_llama):
+    app = create_app(transport=httpx.MockTransport(hf_handler))
+    async with client(app) as c:
+        req = {"source": "hf", "repo": "acme/tiny-GGUF", "files": ["tiny.Q4_K_M.gguf"]}
+        first = (await c.post("/api/downloads", json=req)).json()
+        assert (await c.post("/api/downloads", json=req)).status_code == 400  # уже скачивается
+        for _ in range(50):
+            if (await c.get("/api/downloads")).json()[0]["status"] == "done":
+                break
+            await asyncio.sleep(0.1)
+        dup = await c.post("/api/downloads", json=req)
+        assert dup.status_code == 400 and "уже установлена" in dup.json()["detail"]
+        other = await c.post("/api/downloads", json={**req, "files": ["tiny.Q4_K_M.gguf", "extra.gguf"]})
+        assert other.json()["model_id"] != first["model_id"]
+
+
+async def test_failed_load_leaves_slot_clean(data_dir, monkeypatch):
+    from kira_local.registry import Registry
+
+    monkeypatch.delenv("LLAMA_SERVER_BIN", raising=False)
+    monkeypatch.setenv("PATH", "/nonexistent")
+    reg = Registry()
+    reg.add({"id": "g1", "name": "g", "kind": "chat", "format": "gguf", "path": "/x.gguf"})
+    app = create_app(registry=reg)
+    async with client(app) as c:
+        ext = (await c.post("/api/models/external", json={"name": "x", "base_url": "http://localhost:1/v1"})).json()
+        assert (await c.post("/api/slots/chat/load", json={"model_id": ext["id"]})).status_code == 200
+        bad = await c.post("/api/slots/chat/load", json={"model_id": "g1"})
+        assert bad.status_code == 400 and "llama-server" in bad.json()["detail"]
+        assert (await c.get("/api/status")).json()["slots"]["chat"]["model_id"] is None
+        assert (await c.post("/api/chat", json={"slot": "chat", "messages": []})).status_code == 409

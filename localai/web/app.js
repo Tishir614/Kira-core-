@@ -74,7 +74,32 @@ async function bench(m,btn){if(!isLoaded(m))return toast('Сначала зап�
 const favs=()=>store.get('kira-fav',[]);const recents=()=>store.get('kira-recent',[]);
 const isFav=id=>favs().some(f=>f.id===id);
 function toggleFav(item){let f=favs();f=isFav(item.id)?f.filter(x=>x.id!==item.id):[{id:item.id,source:item.source,title:item.title},...f];store.set('kira-fav',f)}
-function pushRecent(item){const r=[{id:item.id,source:item.source,title:item.title,kind:item.kind},...recents().filter(x=>x.id!==item.id)].slice(0,12);store.set('kira-recent',r)}
+function pushRecent(item){if(item.source==='url')return;const r=[{id:item.id,source:item.source,title:item.title,kind:item.kind},...recents().filter(x=>x.id!==item.id)].slice(0,12);store.set('kira-recent',r)}
+
+/* ---------- стартовый набор и диагностика ---------- */
+const STARTERS=[['Qwen/Qwen2.5-1.5B-Instruct-GGUF','Лёгкая','≈1 ГБ · для слабых телефонов (до 4 ГБ ОЗУ)'],['Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF','Для кода','≈1 ГБ · помощник программиста'],
+  ['bartowski/Llama-3.2-3B-Instruct-GGUF','Баланс','≈2 ГБ · хороший выбор для 6 ГБ ОЗУ'],['Qwen/Qwen2.5-7B-Instruct-GGUF','Мощная','≈4.7 ГБ · для 8+ ГБ ОЗУ и ПК']];
+function starterIndex(){const ram=navigator.deviceMemory||0;return ram>=8?3:ram>=6?2:ram>0?0:2}
+async function ping(url,token){const t0=performance.now(),ac=new AbortController(),tm=setTimeout(()=>ac.abort(),7000);
+  try{const r=await fetch(url,{signal:ac.signal,cache:'no-store',...(token?{headers:{Authorization:'Bearer '+token}}:{})});clearTimeout(tm);return{ok:r.ok,ms:Math.round(performance.now()-t0),json:await r.json().catch(()=>null),status:r.status}}
+  catch(e){clearTimeout(tm);return{ok:false,ms:0,err:e.name==='AbortError'?'таймаут':'нет связи'}}}
+async function diagnose(){const lb=$('lightbox');lb.classList.remove('hidden');const list=el('div',{style:'width:100%;max-width:480px;max-height:62vh;overflow:auto'});
+  const close=el('button',{className:'btn sm',textContent:'Закрыть'});close.onclick=()=>lb.classList.add('hidden');
+  lb.replaceChildren(el('h3',{style:'color:#fff;font-size:22px;text-transform:lowercase',textContent:'диагностика'}),list,close);
+  const add=(ok,t,sub)=>list.append(el('div',{className:'cardx rowx'},el('b',{textContent:ok===null?'•':ok?'✓':'✗',style:'font-size:20px;width:22px;text-align:center'+(ok===false?';color:var(--bad)':'')}),el('div',{className:'grow'},el('div',{className:'t',textContent:t}),el('div',{className:'s',textContent:sub||''}))));
+  try{status=await api('/api/status')}catch{}
+  add(null,'Платформа',status.platform==='android'?'Android (встроенный сервер)':'Настольная версия');
+  add(!!status.llama_server,'llama.cpp (запуск моделей)',status.llama_server||'llama-server не найден — модели GGUF не запустятся; можно подключить внешний сервер (Ollama)');
+  add(status.disk_free?status.disk_free>2e9:null,'Свободно на диске',status.disk_free?fmt(status.disk_free):'неизвестно');
+  add(navigator.deviceMemory?navigator.deviceMemory>=4:null,'Память устройства',navigator.deviceMemory?`≈ ${navigator.deviceMemory}+ ГБ (оценка браузера)`:'неизвестно');
+  add(navigator.onLine,'Интернет',navigator.onLine?'подключено':'нет соединения');
+  const t=tokens();const [h,g]=await Promise.all([ping('https://huggingface.co/api/models?limit=1',t.hf),ping('https://api.github.com/rate_limit',t.gh)]);
+  add(h.ok,'Hugging Face',h.ok?h.ms+' мс'+(t.hf?' · с аккаунтом':''):h.err||('ответ '+h.status));
+  const left=g.json&&g.json.resources&&g.json.resources.core?g.json.resources.core.remaining+' из '+g.json.resources.core.limit:'';
+  add(g.ok,'GitHub',g.ok?g.ms+' мс'+(left?' · запросов осталось: '+left:''):g.err||('ответ '+g.status));
+  const loadedNames=['chat','code'].map(k=>loaded(k)).filter(Boolean).length;add(null,'Запущено моделей',String(loadedNames));
+  let ls=true;try{localStorage.setItem('kira-test','1');localStorage.removeItem('kira-test')}catch{ls=false}add(ls,'Хранилище чатов и настроек',ls?'работает':'недоступно — чаты не сохранятся')}
+window.addEventListener('offline',()=>toast('Нет интернета — поиск и скачивание недоступны'));
 
 /* ---------- мелкие компоненты ---------- */
 const FAMS=['Qwen','Llama','Gemma','Phi','Mistral','DeepSeek','SmolLM','FLUX','SDXL','Whisper'];
@@ -115,6 +140,8 @@ let homeCache={};
 function renderHome(){const body=$('homeBody');body.replaceChildren();
   const last=store.get('kira-last',null),lm=last&&models.find(m=>m.id===last.id);
   if(lm&&!isLoaded(lm)&&lm.kind!=='image'&&lm.kind!=='other'){const b=el('button',{className:'btn',style:'margin-top:14px'},el('span',{textContent:'Продолжить с «'+lm.name+'»'}),icon('play'));b.onclick=()=>runModel(lm,b);body.append(b)}
+  if(!models.length){const si=starterIndex();body.append(section('Стартовый набор — скачайте первую модель'));
+    STARTERS.forEach(([id,label,note],i)=>body.append(row(famTile(KiraAnalyze.guessFamily(id)||id,true),label+(i===si?'  ★ для вас':''),note,null,()=>openDetail(id))))}
   body.append(section('Рекомендуем для вас'));
   const tiles=el('div',{className:'tiles'});FAMS.forEach(f=>{const b=el('button',{},famTile(f),el('span',{textContent:f}));b.onclick=()=>openSearch(f,{src:'hf',chip:/FLUX|SDXL/.test(f)?'image':/Whisper/.test(f)?'all':'gguf'});tiles.append(b)});body.append(tiles);
   body.append(section('Быстрый старт'));
@@ -175,6 +202,7 @@ function ring(pct){const R=56,C=2*Math.PI*R;const w=el('div',{className:'ring'})
 function renderDetail(){const a=detail.a,body=$('detailBody');if(!a)return;const o=a.options[detail.opt];
   $('dTitleBar').textContent=a.title.length>22?a.title.slice(0,21)+'…':a.title;
   $('dFav').firstChild.replaceWith(icon(isFav(a.repo||a.title)?'heartf':'heart'));
+  $('dFav').classList.toggle('hidden',a.source==='url');
   $('dFav').onclick=()=>{toggleFav({id:a.repo||a.title,source:a.source,title:a.title});renderDetail()};
   const top=el('div',{className:'detail-top'});top.innerHTML=ILL[a.kind==='chat'||a.kind==='code'||a.kind==='image'?a.kind:'other'];
   top.append(el('h1',{className:'big-title',style:'font-size:24px;margin-top:8px;text-transform:none;word-break:break-word',textContent:a.title}),
@@ -239,6 +267,7 @@ function renderLibrary(){const p=displayProfile();const av=$('profAvatar');av.re
   const fv=favs();if(fv.length){body.append(section('Избранное'));fv.forEach(r=>body.append(row(famTile(KiraAnalyze.guessFamily(r.id)||r.title,true),r.title,r.id,el('span',{className:'playc'},icon('heartf')),()=>openDetail(r))))}
   body.append(section('Аккаунты'));const hub=el('button',{className:'btn out'},el('span',{textContent:p?'Управление аккаунтами':'Подключить Hugging Face / GitHub'}),icon('arrow'));hub.onclick=()=>go('connect',{root:true});body.append(hub);
   body.append(section('Статистика'));const sp=store.get('kira-stats',{msgs:0,imgs:0});body.append(el('div',{className:'stats',style:'margin-top:0'},...[[sp.msgs,'сообщений'],[sp.imgs,'картинок'],[Object.keys(benchs).length,'тестов']].map(([v,l])=>el('div',{className:'stat'},el('b',{textContent:v}),el('hr'),el('span',{textContent:l})))));
+  body.append(section('Диагностика'));const dg=el('button',{className:'btn out'},el('span',{textContent:'Проверить приложение и сеть'}),icon('bolt'));dg.onclick=diagnose;body.append(dg);
   body.append(section('Оформление'));const cur=store.get('kira-theme','auto');const seg=el('div',{className:'seg'},...[['auto','Авто'],['light','Светлая'],['dark','Тёмная']].map(([k,t])=>{const b=el('button',{className:cur===k?'on':'',textContent:t});b.onclick=()=>{store.set('kira-theme',k);applyTheme();renderLibrary()};return b}));body.append(seg);
   body.parentElement.scrollTop=keepScroll}
 onShow.library=()=>{renderLibrary();pollDownloads()};

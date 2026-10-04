@@ -22,9 +22,10 @@ function renderRich(node,text,md=true){node.replaceChildren();text.split(/(```[\
 const typing=()=>el('span',{className:'typing'},el('i'),el('i'),el('i'));
 
 /* ---------- выбор моделей ---------- */
-function fillSelect(id,list,sel){const s=$(id),prev=s.value;
+function fillSelect(id,list,sel){const s=$(id),prev=s.value,last=s.dataset.sel||'';
   s.replaceChildren(...(list.length?list.map(m=>el('option',{value:m.id,textContent:(m.id===sel?'● ':'')+m.name})):[el('option',{value:'',textContent:'— нет моделей —'})]));
-  s.value=sel||prev||(list[0]&&list[0].id)||''}
+  // Если запущенная модель сменилась — показываем её; иначе не сбрасываем выбор пользователя.
+  s.value=(sel&&sel!==last)?sel:(prev&&list.some(m=>m.id===prev)?prev:(sel||(list[0]&&list[0].id)||''));s.dataset.sel=sel||''}
 function onRefresh(){fillSelect('chatModel',models.filter(m=>m.kind==='chat'||m.kind==='code'),loaded('chat'));
   fillSelect('codeModel',[...models.filter(m=>m.kind==='code'),...models.filter(m=>m.kind==='chat')],loaded('code'));
   fillSelect('imgModel',models.filter(m=>m.kind==='image'));
@@ -94,7 +95,8 @@ async function generate(c){
   const history=[...(sys(c)?[{role:'system',content:sys(c)}]:[]),...c.messages.map(({role,content})=>({role,content}))];
   try{part=await stream('chat',history,x=>{part=x;renderRich(out.b,x);$('chatLog').scrollTop=1e9},v=>tps=v,abortCtl.signal);c.messages.push({role:'assistant',content:part,meta:tps?`${tps.toFixed(1)} ток/с`:''})}
   catch(e){if(e.name==='AbortError'){if(part)c.messages.push({role:'assistant',content:part,meta:'остановлено'});else out.b.replaceChildren(el('span',{className:'dim',textContent:'Остановлено'}))}
-    else{out.b.replaceChildren(el('span',{style:'color:var(--bad)',textContent:e.message}));if(/не загружена/.test(e.message)){const b=el('button',{className:'btn sm',style:'margin-top:8px',textContent:'Выбрать модель'});b.onclick=()=>go('library',{root:true});out.b.append(b)}abortCtl=null;setBusy(false);return}}
+    else{abortCtl=null;setBusy(false);const u=c.messages.pop();save();$('chatInput').value=u?u.content:'';autosize();renderChat();
+      if(/не загружена/.test(e.message)){toast('Сначала запустите модель');go('library',{root:true})}else toast(e.message);return}}
   save();abortCtl=null;setBusy(false);renderChat()}
 async function send(){if(abortCtl){abortCtl.abort();return}
   const t=$('chatInput').value.trim();if(!t)return;const c=chat();$('chatInput').value='';autosize();
