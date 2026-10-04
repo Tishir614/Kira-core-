@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="dev.kira.local.LocalServerTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-10-04T07:06:54.949Z" hostname="vm" time="1.631">
+  <properties/>
+  <testcase name="tokenIsRequired()" classname="dev.kira.local.LocalServerTest" time="0.177"/>
+  <testcase name="resumesPartialDownload()" classname="dev.kira.local.LocalServerTest" time="0.131"/>
+  <testcase name="downloadLoadChatDelete()" classname="dev.kira.local.LocalServerTest" time="0.987"/>
+  <testcase name="rejectsUnsafeInput()" classname="dev.kira.local.LocalServerTest" time="0.203"/>
+  <testcase name="searchAndFiles()" classname="dev.kira.local.LocalServerTest" time="0.124"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

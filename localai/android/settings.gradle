@@ -1,0 +1,23 @@
+pluginManagement {
+    plugins {
+        id 'com.android.application' version '8.5.2'
+    }
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'kira-local-android'
+include ':core'
+// Модуль приложения подключается только там, где есть Android SDK (CI / Android Studio).
+if (System.getenv('ANDROID_HOME') || System.getenv('ANDROID_SDK_ROOT') || file('local.properties').exists()) {
+    include ':app'
+}
