@@ -84,7 +84,9 @@ async def test_bad_requests(data_dir):
         ext = await c.post("/api/models/external", json={"name": "ollama", "base_url": "http://localhost:11434/v1", "remote_model": "q"})
         assert ext.status_code == 200 and ext.json()["format"] == "remote"
         assert (await c.get("/")).status_code == 200
-        assert (await c.get("/analyze.js")).status_code == 200
+        for f in ("analyze.js", "hub.js", "app.js", "studio.js", "app.css"):
+            assert (await c.get("/" + f)).status_code == 200, f
+        assert (await c.get("/server.py")).status_code == 404
 
 
 async def test_remote_image_flow_and_gallery(data_dir):

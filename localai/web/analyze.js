@@ -195,7 +195,7 @@
       try { const r = await f(HF + '/' + p.repo + '/raw/main/README.md'); if (r.ok) readme = (await r.text()).slice(0, 6000); } catch { /* описание необязательно */ }
       return analyzeHf(p.repo, info, readme, p.file);
     }
-    const [info, rels] = await Promise.all([getJson(GH + '/repos/' + p.repo, null, f), getJson(GH + '/repos/' + p.repo + '/releases?per_page=5', null, f)]);
+    const [info, rels] = await Promise.all([getJson(GH + '/repos/' + p.repo, opts.ghToken, f), getJson(GH + '/repos/' + p.repo + '/releases?per_page=5', opts.ghToken, f)]);
     return analyzeGithub(p.repo, info, rels);
   }
 

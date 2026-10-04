@@ -7,7 +7,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
+import android.net.Uri;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -41,7 +43,20 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         web.setBackgroundColor(0xFF0B0D14);
-        web.setWebViewClient(new WebViewClient());
+        web.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri u = request.getUrl();
+                if ("127.0.0.1".equals(u.getHost())) return false;
+                // Внешние ссылки (Hugging Face, GitHub, создание токенов) открываем в браузере, а не внутри приложения.
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, u));
+                } catch (Exception ignored) {
+                    // нет приложения для ссылки
+                }
+                return true;
+            }
+        });
         web.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onConsoleMessage(ConsoleMessage m) {

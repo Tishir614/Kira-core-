@@ -227,9 +227,11 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
 
     app.mount("/outputs", StaticFiles(directory=outputs_dir()), name="outputs")
 
-    @app.get("/analyze.js")
-    def analyze_js() -> FileResponse:
-        return FileResponse(STATIC / "analyze.js", media_type="text/javascript")
+    @app.get("/{name}")
+    def static_file(name: str) -> FileResponse:
+        if not re.fullmatch(r"[a-z0-9_-]+\.(js|css|svg)", name) or not (STATIC / name).is_file():
+            raise HTTPException(404, "not found")
+        return FileResponse(STATIC / name)
 
     @app.get("/")
     def index() -> FileResponse:

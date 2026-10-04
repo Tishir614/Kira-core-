@@ -12,6 +12,7 @@ import java.security.SecureRandom;
 final class ServerHolder {
     private static LocalServer server;
     static String token;
+    private static final int PREFERRED_PORT = 38765;
 
     private ServerHolder() {}
 
@@ -39,8 +40,14 @@ final class ServerHolder {
                 return null;
             }
         };
-        server = new LocalServer(cfg, 0);
-        server.start();
+        // Фиксированный порт важен: WebView привязывает localStorage (чаты, токены) к адресу. Если порт занят — любой свободный.
+        try {
+            server = new LocalServer(cfg, PREFERRED_PORT);
+            server.start();
+        } catch (IOException busy) {
+            server = new LocalServer(cfg, 0);
+            server.start();
+        }
         return server.getListeningPort();
     }
 

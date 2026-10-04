@@ -27,7 +27,7 @@ jobs:
         with: {gradle-version: '8.9'}
 
       - name: Link analyzer tests (Node)
-        run: node --test localai/tests/analyze.test.js
+        run: node --test localai/tests/analyze.test.js localai/tests/hub.test.js
 
       - name: Core unit tests (JVM)
         working-directory: localai/android
