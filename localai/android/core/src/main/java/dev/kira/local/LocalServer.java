@@ -19,6 +19,7 @@ public final class LocalServer extends NanoHTTPD {
     private final Hub hub;
     private final Downloads downloads;
     private final ModelRuntime runtime;
+    private final ImageService images;
 
     public LocalServer(Config cfg, int port) {
         super("127.0.0.1", port);
@@ -27,6 +28,7 @@ public final class LocalServer extends NanoHTTPD {
         this.hub = new Hub(cfg);
         this.downloads = new Downloads(cfg, registry);
         this.runtime = new ModelRuntime(cfg, registry);
+        this.images = new ImageService(cfg);
     }
 
     public void shutdown() {
@@ -61,6 +63,11 @@ public final class LocalServer extends NanoHTTPD {
             }
             if (!authorized(s)) return err(Response.Status.FORBIDDEN, "Нет доступа");
             if (uri.startsWith("/api/")) return api(s, uri.substring(5));
+            if (uri.startsWith("/outputs/")) {
+                java.io.File f = images.file(uri.substring(9));
+                if (f == null) return err(Response.Status.NOT_FOUND, "not found");
+                return newChunkedResponse(Response.Status.OK, "image/png", new java.io.FileInputStream(f));
+            }
             return asset(uri.equals("/") ? "index.html" : uri.substring(1));
         } catch (IllegalArgumentException e) {
             return err(Response.Status.BAD_REQUEST, e.getMessage());
@@ -93,7 +100,12 @@ public final class LocalServer extends NanoHTTPD {
     private Response api(IHTTPSession s, String path) throws Exception {
         Method m = s.getMethod();
         Map<String, String> q = s.getParms();
-        if (m == Method.GET && path.equals("status")) return json(Response.Status.OK, runtime.status());
+        if (m == Method.GET && path.equals("status")) {
+            boolean remoteImages = false;
+            org.json.JSONArray all = registry.list();
+            for (int i = 0; i < all.length(); i++) if ("remote_image".equals(all.getJSONObject(i).optString("format"))) remoteImages = true;
+            return json(Response.Status.OK, runtime.status().put("images", remoteImages).put("diffusers", false));
+        }
         if (m == Method.GET && path.equals("models")) return json(Response.Status.OK, registry.list());
         if (m == Method.DELETE && path.startsWith("models/")) {
             String id = path.substring(7);
@@ -103,10 +115,11 @@ public final class LocalServer extends NanoHTTPD {
         if (m == Method.POST && path.equals("models/external")) {
             JSONObject b = body(s);
             String kind = b.optString("kind", "chat"), url = b.optString("base_url");
-            if (!(kind.equals("chat") || kind.equals("code"))) throw new IllegalArgumentException("kind: chat | code");
+            String apiKind = b.optString("api", "openai");
+            if (!(kind.equals("chat") || kind.equals("code") || kind.equals("image")) || !(apiKind.equals("openai") || apiKind.equals("a1111"))) throw new IllegalArgumentException("kind: chat | code | image; api: openai | a1111");
             if (!url.matches("^https?://.+")) throw new IllegalArgumentException("base_url должен начинаться с http(s)://");
             String name = b.optString("name", b.optString("remote_model", "external"));
-            JSONObject e = new JSONObject().put("id", Registry.slugify(name)).put("name", name).put("kind", kind).put("format", "remote").put("base_url", url).put("source", "external");
+            JSONObject e = new JSONObject().put("id", Registry.slugify(name)).put("name", name).put("kind", kind).put("format", kind.equals("image") ? "remote_image" : "remote").put("api", apiKind).put("base_url", url).put("source", "external");
             if (!b.optString("remote_model").isEmpty()) e.put("remote_model", b.getString("remote_model"));
             return json(Response.Status.OK, registry.add(e));
         }
@@ -134,7 +147,26 @@ public final class LocalServer extends NanoHTTPD {
             }
         }
         if (m == Method.POST && path.equals("chat")) return chat(body(s));
-        if (m == Method.POST && path.equals("image")) return err(Response.Status.NOT_IMPLEMENTED, "Генерация изображений на устройстве пока не поддерживается. Используйте настольную версию или внешний сервер.");
+        if (m == Method.POST && path.equals("image")) {
+            JSONObject b = body(s);
+            JSONObject model = registry.get(b.optString("model_id"));
+            if (model == null || !"image".equals(model.optString("kind"))) throw new IllegalArgumentException("Выберите модель изображений");
+            try {
+                return json(Response.Status.OK, images.submit(model, b));
+            } catch (IllegalStateException e) {
+                return err(Response.Status.NOT_IMPLEMENTED, e.getMessage());
+            }
+        }
+        if (path.startsWith("image/")) {
+            String id = path.substring(6);
+            if (m == Method.GET) {
+                JSONObject st = images.status(id);
+                return st == null ? err(Response.Status.NOT_FOUND, "Задача не найдена") : json(Response.Status.OK, st);
+            }
+            if (m == Method.DELETE) return images.cancel(id) ? json(Response.Status.OK, new JSONObject().put("ok", true)) : err(Response.Status.NOT_FOUND, "Задача не найдена");
+        }
+        if (m == Method.GET && path.equals("gallery")) return json(Response.Status.OK, images.gallery(100));
+        if (m == Method.DELETE && path.startsWith("gallery/")) return json(Response.Status.OK, new JSONObject().put("ok", images.delete(path.substring(8))));
         return err(Response.Status.NOT_FOUND, "Неизвестный метод");
     }
 

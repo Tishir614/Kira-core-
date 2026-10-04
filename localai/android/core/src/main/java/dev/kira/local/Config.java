@@ -14,6 +14,7 @@ public final class Config {
 
     public File dataDir;
     public File modelsDir;
+    public File outputsDir;
     /** Путь к исполняемому llama-server (или null). */
     public String llamaBinary;
     public AssetSource assets;
@@ -31,5 +32,8 @@ public final class Config {
         this.modelsDir = new File(dataDir, "models");
         //noinspection ResultOfMethodCallIgnored
         modelsDir.mkdirs();
+        this.outputsDir = new File(dataDir, "outputs");
+        //noinspection ResultOfMethodCallIgnored
+        outputsDir.mkdirs();
     }
 }

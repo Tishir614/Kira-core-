@@ -43,6 +43,7 @@ class ExternalReq(BaseModel):
     base_url: str
     remote_model: str | None = None
     kind: str = "chat"
+    api: str = "openai"  # для kind=image: openai | a1111
 
 
 class ChatReq(BaseModel):
@@ -60,13 +61,15 @@ class ImageReq(BaseModel):
     width: int = Field(512, ge=64, le=2048)
     height: int = Field(512, ge=64, le=2048)
     seed: int | None = None
+    guidance: float = Field(7.0, ge=0, le=30)
+    count: int = Field(1, ge=1, le=4)
 
 
 def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTransport | None = None) -> FastAPI:
     registry = registry or Registry()
     downloads = Downloads(registry, transport)
     runtime = Runtime(registry)
-    images = imagegen.ImageGenerator()
+    images = imagegen.ImageService()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -80,7 +83,7 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
 
     @app.get("/api/status")
     def status() -> dict[str, Any]:
-        return {**runtime.status(), "diffusers": imagegen.available(), "images": imagegen.available(), "platform": "desktop"}
+        return {**runtime.status(), "diffusers": imagegen.available(), "images": imagegen.available() or any(m.get("format") == "remote_image" for m in registry.list()), "platform": "desktop"}
 
     # ----- модели -----
     @app.get("/api/models")
@@ -98,11 +101,11 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
 
     @app.post("/api/models/external")
     def add_external(req: ExternalReq) -> dict[str, Any]:
-        if req.kind not in KINDS or req.kind == "image":
-            raise HTTPException(400, "kind: chat | code")
+        if req.kind not in ("chat", "code", "image") or req.api not in ("openai", "a1111"):
+            raise HTTPException(400, "kind: chat | code | image; api: openai | a1111")
         if not re.match(r"^https?://", req.base_url):
             raise HTTPException(400, "base_url должен начинаться с http(s)://")
-        return registry.add({"id": slugify(req.name), "name": req.name, "kind": req.kind, "format": "remote", "base_url": req.base_url, "remote_model": req.remote_model, "source": "external"})
+        return registry.add({"id": slugify(req.name), "name": req.name, "kind": req.kind, "format": "remote_image" if req.kind == "image" else "remote", "api": req.api, "base_url": req.base_url, "remote_model": req.remote_model, "source": "external"})
 
     # ----- источники -----
     @app.get("/api/hf/files")
@@ -188,15 +191,39 @@ def create_app(registry: Registry | None = None, transport: httpx.AsyncBaseTrans
 
     # ----- изображения -----
     @app.post("/api/image")
-    async def image(req: ImageReq) -> dict[str, str]:
+    async def image(req: ImageReq) -> dict[str, Any]:
         model = registry.get(req.model_id)
         if model is None or model["kind"] != "image":
             raise HTTPException(400, "Выберите модель изображений")
+        if model.get("format") != "remote_image" and not imagegen.available():
+            raise HTTPException(501, "Для локальной генерации: pip install diffusers torch transformers accelerate safetensors — либо подключите внешний сервер (вкладка «Свой сервер»)")
+        return images.submit(model, req.model_dump(exclude={"model_id"})).public()
+
+    @app.get("/api/image/{job_id}")
+    def image_status(job_id: str) -> dict[str, Any]:
+        job = images.jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, "Задача не найдена")
+        return job.public()
+
+    @app.delete("/api/image/{job_id}")
+    def image_cancel(job_id: str) -> dict[str, bool]:
+        job = images.jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, "Задача не найдена")
+        job.cancel.set()
+        return {"ok": True}
+
+    @app.get("/api/gallery")
+    def gallery_list() -> list[dict[str, Any]]:
+        return imagegen.gallery()
+
+    @app.delete("/api/gallery/{name}")
+    def gallery_delete(name: str) -> dict[str, bool]:
         try:
-            name = await asyncio.to_thread(images.generate, model, req.prompt, req.negative, req.steps, req.width, req.height, req.seed)
+            return {"ok": imagegen.delete_image(name)}
         except imagegen.ImageError as exc:
-            raise HTTPException(501, str(exc)) from exc
-        return {"url": f"/outputs/{name}"}
+            raise HTTPException(400, str(exc)) from exc
 
     app.mount("/outputs", StaticFiles(directory=outputs_dir()), name="outputs")
 

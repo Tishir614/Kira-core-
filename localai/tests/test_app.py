@@ -85,3 +85,47 @@ async def test_bad_requests(data_dir):
         assert ext.status_code == 200 and ext.json()["format"] == "remote"
         assert (await c.get("/")).status_code == 200
         assert (await c.get("/analyze.js")).status_code == 200
+
+
+async def test_remote_image_flow_and_gallery(data_dir):
+    import base64
+
+    png = base64.b64encode(b"\x89PNG\r\n\x1a\nfake").decode()
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(json.loads(request.content))
+        return httpx.Response(200, json={"images": [png]})
+
+    real_client = httpx.Client
+
+    class Patched(real_client):
+        def __init__(self, *a, **k):
+            k["transport"] = httpx.MockTransport(handler)
+            super().__init__(*a, **k)
+
+    import kira_local.imagegen as ig
+
+    ig.httpx.Client = Patched
+    try:
+        app = create_app()
+        async with client(app) as c:
+            m = (await c.post("/api/models/external", json={"name": "A1111", "base_url": "http://pc:7860", "kind": "image", "api": "a1111"})).json()
+            assert m["format"] == "remote_image"
+            assert (await c.get("/api/status")).json()["images"] is True
+            job = (await c.post("/api/image", json={"model_id": m["id"], "prompt": "cat", "steps": 5, "count": 2, "seed": 10})).json()
+            for _ in range(50):
+                st = (await c.get(f"/api/image/{job['id']}")).json()
+                if st["status"] in ("done", "error"):
+                    break
+                await asyncio.sleep(0.1)
+            assert st["status"] == "done", st
+            assert [i["seed"] for i in st["images"]] == [10, 11] and calls[0]["seed"] == 10 and calls[0]["steps"] == 5
+            assert (await c.get(st["images"][0]["url"])).content.startswith(b"\x89PNG")
+            gal = (await c.get("/api/gallery")).json()
+            assert len(gal) == 2 and gal[0]["prompt"] == "cat"
+            assert (await c.delete(f"/api/gallery/{gal[0]['name']}")).json() == {"ok": True}
+            assert (await c.delete("/api/gallery/..%2Fx.png")).status_code in (400, 404)
+            assert len((await c.get("/api/gallery")).json()) == 1
+    finally:
+        ig.httpx.Client = real_client

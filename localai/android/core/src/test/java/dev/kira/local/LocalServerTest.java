@@ -163,4 +163,50 @@ class LocalServerTest {
         assertEquals("image", Registry.guessKind("stable-diffusion-xl", false));
         assertEquals("code", Registry.guessKind("Qwen2.5-Coder", false));
     }
+
+    @Test
+    void remoteImageGenerationAndGallery() throws Exception {
+        String png = java.util.Base64.getEncoder().encodeToString(new byte[] {(byte) 0x89, 'P', 'N', 'G', 1, 2, 3});
+        HttpServer sd = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        java.util.List<String> bodies = new java.util.concurrent.CopyOnWriteArrayList<>();
+        sd.createContext("/sdapi/v1/txt2img", ex -> {
+            bodies.add(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] out = ("{\"images\":[\"" + png + "\"]}").getBytes();
+            ex.sendResponseHeaders(200, out.length);
+            ex.getResponseBody().write(out);
+            ex.close();
+        });
+        sd.start();
+        try {
+            String m = api("POST", "/api/models/external", "{\"name\":\"SD\",\"base_url\":\"http://127.0.0.1:" + sd.getAddress().getPort() + "\",\"kind\":\"image\",\"api\":\"a1111\"}");
+            assertTrue(m.startsWith("200") && m.contains("remote_image"), m);
+            String id = new JSONObject(m.substring(4)).getString("id");
+            assertTrue(api("GET", "/api/status", null).contains("\"images\":true"));
+            JSONObject job = new JSONObject(api("POST", "/api/image", "{\"model_id\":\"" + id + "\",\"prompt\":\"cat\",\"steps\":4,\"count\":2,\"seed\":7}").substring(4));
+            JSONObject st = null;
+            for (int i = 0; i < 100; i++) {
+                st = new JSONObject(api("GET", "/api/image/" + job.getString("id"), null).substring(4));
+                if (st.getString("status").equals("done") || st.getString("status").equals("error")) break;
+                Thread.sleep(100);
+            }
+            assertEquals("done", st.getString("status"), st.toString());
+            assertEquals(2, st.getJSONArray("images").length());
+            assertEquals(7, st.getJSONArray("images").getJSONObject(0).getLong("seed"));
+            assertTrue(bodies.get(0).contains("\"seed\":7") && bodies.get(0).contains("\"steps\":4"));
+            String url = st.getJSONArray("images").getJSONObject(0).getString("url");
+            HttpURLConnection c = (HttpURLConnection) new URL(base + url).openConnection();
+            c.setRequestProperty("Cookie", "kt=secret");
+            assertEquals(200, c.getResponseCode());
+            assertEquals(7, c.getInputStream().readAllBytes().length);
+            JSONArray gal = new JSONArray(api("GET", "/api/gallery", null).substring(4));
+            assertEquals(2, gal.length());
+            String name = gal.getJSONObject(0).getString("name");
+            assertTrue(api("DELETE", "/api/gallery/" + name, null).startsWith("200"));
+            assertEquals(1, new JSONArray(api("GET", "/api/gallery", null).substring(4)).length());
+            assertTrue(api("DELETE", "/api/gallery/..%2Fx.png", null).startsWith("400") || api("DELETE", "/api/gallery/..%2Fx.png", null).startsWith("404"));
+            assertTrue(call("GET", "/outputs/" + name, null, null).startsWith("403"));
+        } finally {
+            sd.stop(0);
+        }
+    }
 }

@@ -106,6 +106,20 @@ img.out{width:100%;border-radius:16px;border:1px solid var(--line);margin-top:12
 .opt b{font-size:14px}.opt span{font-size:12px;color:var(--dim)}.opt.sel{border-color:var(--a1);background:color-mix(in srgb,var(--a1) 16%,transparent);box-shadow:0 0 0 2px var(--glow)}
 details{margin-top:8px}summary{cursor:pointer;color:var(--dim);font-size:13px}
 .spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--a1);animation:rot .8s linear infinite;display:inline-block}@keyframes rot{to{transform:rotate(1turn)}}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+.grid .th{position:relative;aspect-ratio:1;border-radius:14px;overflow:hidden;border:1px solid var(--line);cursor:pointer;background:var(--card2)}
+.grid .th img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s}.grid .th:hover img{transform:scale(1.06)}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
+.results img{width:100%;border-radius:16px;border:1px solid var(--line);cursor:pointer;display:block}
+.styles{display:flex;gap:6px;flex-wrap:wrap}.styles .chip.sel{background:var(--grad);color:#fff;border:0}
+.ratio{display:flex;gap:6px;flex-wrap:wrap}.ratio button{min-height:0;padding:6px 12px;font-size:13px}.ratio button.sel{border-color:var(--a1);background:color-mix(in srgb,var(--a1) 18%,transparent)}
+.bar{height:10px;border-radius:10px;background:var(--card2);overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;width:0;background:var(--grad);transition:width .25s}
+.lightbox{position:fixed;inset:0;z-index:40;background:#000d;backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;overflow:auto}
+.lightbox img{max-width:100%;max-height:60vh;border-radius:16px}.lightbox .info{max-width:560px;width:100%;color:#dfe3f2;font-size:13px}
+.lightbox .row{justify-content:center}.lightbox button,.lightbox a.btn{background:#ffffff1a;color:#fff;border:1px solid #ffffff30}
+a.btn{display:inline-flex;align-items:center;padding:9px 13px;border-radius:14px;text-decoration:none;min-height:42px;font-size:14px}
+.acts{display:flex;gap:6px;padding:0 4px}.acts button{min-height:0;padding:3px 9px;font-size:12px;background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:99px}
 @media (min-width:900px){.sheet.left{width:560px}}
 </style>
 </head>
@@ -190,11 +204,13 @@ details{margin-top:8px}summary{cursor:pointer;color:var(--dim);font-size:13px}
     </div>
 
     <div id="src-ext" class="hidden">
-      <p class="dim">Подключите запущенный OpenAI-совместимый сервер: Ollama (<code>http://IP:11434/v1</code>), LM Studio (<code>:1234/v1</code>), vLLM. Так работают модели любого формата — в том числе с компьютера в вашей сети.</p>
+      <p class="dim">Подключите запущенный сервер — так работают модели любого формата, в том числе с вашего компьютера в сети. <b>Текст:</b> Ollama (<code>http://IP:11434/v1</code>), LM Studio (<code>:1234/v1</code>), vLLM. <b>Изображения:</b> AUTOMATIC1111 / Forge / SD.Next (<code>http://IP:7860</code>, запуск с флагом <code>--api</code>) или OpenAI-совместимый API.</p>
       <label>Название</label><input id="extName">
       <label>Base URL</label><input id="extUrl" value="http://localhost:11434/v1">
-      <label>Имя модели на сервере</label><input id="extModel" placeholder="qwen2.5-coder:7b">
-      <div class="row" style="margin-top:12px"><select id="extKind" class="grow"><option value="chat">chat</option><option value="code">code</option></select><button id="extAdd" class="primary">Добавить</button></div>
+      <label>Имя модели на сервере (необязательно для изображений)</label><input id="extModel" placeholder="qwen2.5-coder:7b">
+      <div class="row" style="margin-top:12px"><select id="extKind" class="grow"><option value="chat">Тип: чат</option><option value="code">Тип: код</option><option value="image">Тип: изображения</option></select>
+        <select id="extApi" class="grow hidden"><option value="a1111">A1111 / Forge</option><option value="openai">OpenAI API</option></select></div>
+      <div class="row" style="margin-top:12px"><button id="extAdd" class="primary grow">Добавить</button></div>
     </div>
 
     <div id="dlMsg" class="dim" style="margin-top:10px"></div>
@@ -219,20 +235,30 @@ details{margin-top:8px}summary{cursor:pointer;color:var(--dim);font-size:13px}
     </div>
     <div id="tab-image" class="hidden">
       <div id="imgWarn" class="note none hidden"></div>
-      <label>Модель изображений</label><select id="imgModel"></select>
-      <label>Промпт</label><textarea id="imgPrompt" rows="3" placeholder="Опишите картинку…"></textarea>
-      <label>Негативный промпт</label><input id="imgNeg">
-      <div class="row">
-        <div style="width:84px"><label>Шаги</label><input id="imgSteps" type="number" value="25"></div>
-        <div style="width:96px"><label>Ширина</label><input id="imgW" type="number" value="512" step="64"></div>
-        <div style="width:96px"><label>Высота</label><input id="imgH" type="number" value="512" step="64"></div>
-        <div style="width:120px"><label>Seed</label><input id="imgSeed" type="number" placeholder="случайный"></div>
-      </div>
-      <div class="row" style="margin-top:14px"><button id="imgRun" class="primary grow">Сгенерировать</button></div>
-      <p id="imgState" class="dim"></p><div id="imgOut"></div>
+      <select id="imgModel"></select>
+      <label>Промпт</label>
+      <textarea id="imgPrompt" rows="3" placeholder="Опишите картинку…"></textarea>
+      <div class="row" style="margin-top:8px"><button id="imgImprove" class="chip"><svg class="i"><use href="#i-spark"/></svg>Улучшить промпт</button><button id="imgIdea" class="chip">🎲 Идея</button><span id="imgHelp" class="dim"></span></div>
+      <label>Стиль</label><div id="imgStyles" class="styles"></div>
+      <label>Формат</label><div id="imgRatio" class="ratio"></div>
+      <label>Сколько вариантов</label><div id="imgCount" class="ratio"></div>
+      <details><summary>Дополнительно</summary>
+        <label>Негативный промпт (чего не должно быть)</label><input id="imgNeg">
+        <div class="row">
+          <div style="width:84px"><label>Шаги</label><input id="imgSteps" type="number" value="25"></div>
+          <div style="width:90px"><label>CFG</label><input id="imgCfg" type="number" value="7" step="0.5"></div>
+          <div style="width:96px"><label>Ширина</label><input id="imgW" type="number" value="512" step="64"></div>
+          <div style="width:96px"><label>Высота</label><input id="imgH" type="number" value="512" step="64"></div>
+          <div class="grow"><label>Seed</label><div class="row"><input id="imgSeed" type="number" placeholder="случайный" class="grow"><button id="imgDice" class="iconbtn" title="Случайный">🎲</button></div></div>
+        </div>
+      </details>
+      <div class="row" style="margin-top:14px"><button id="imgRun" class="primary grow">Сгенерировать</button><button id="imgCancel" class="danger hidden">Стоп</button></div>
+      <div id="imgBar" class="bar hidden"><i></i></div>
+      <p id="imgState" class="dim"></p><div id="imgOut" class="results"></div>
+      <h3>Галерея</h3><div id="gallery" class="grid"></div><div id="galleryEmpty" class="dim">Здесь появятся все ваши картинки.</div>
     </div>
-  </div>
-</aside>
+  </aside>
+<div id="lightbox" class="lightbox hidden"></div>
 
 <script src="/analyze.js"></script>
 <script>
@@ -265,7 +291,7 @@ function sheet(id){openSheet=id;['models','studio'].forEach(s=>$(s).classList.to
   $('navChat').classList.toggle('active',!id);$('navModels').classList.toggle('active',id==='models');$('navStudio').classList.toggle('active',id==='studio')}
 $('navChat').onclick=()=>sheet(null);$('navModels').onclick=()=>sheet('models');$('navStudio').onclick=()=>sheet('studio');
 $('scrim').onclick=()=>sheet(null);document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>sheet(null));
-window.kiraBack=()=>{if(!$('themePop').classList.contains('hidden')){$('themePop').classList.add('hidden');return true}if(openSheet){sheet(null);return true}return false};
+window.kiraBack=()=>{if(!$('lightbox').classList.contains('hidden')){$('lightbox').classList.add('hidden');return true}if(!$('themePop').classList.contains('hidden')){$('themePop').classList.add('hidden');return true}if(openSheet){sheet(null);return true}return false};
 function tabs(box,attr,prefix){$(box).onclick=e=>{const k=e.target.dataset[attr];if(!k)return;
   $(box).querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b===e.target);$(prefix+b.dataset[attr]).classList.toggle('hidden',b!==e.target)})}}
 tabs('srcTabs','src','src-');tabs('studioTabs','tab','tab-');
@@ -284,8 +310,7 @@ async function refresh(){
   fillSelect('chatModel',models.filter(m=>m.kind==='chat'||m.kind==='code'),loaded('chat'));
   fillSelect('codeModel',[...models.filter(m=>m.kind==='code'),...models.filter(m=>m.kind==='chat')],loaded('code'));
   fillSelect('imgModel',models.filter(m=>m.kind==='image'));
-  const w=$('imgWarn');w.classList.toggle('hidden',!!status.images);
-  w.textContent=status.platform==='android'?'На телефоне генерация изображений пока недоступна. Откройте настольную версию Kira Local или подключите внешний сервер.':'Для генерации установите: pip install diffusers torch transformers accelerate safetensors';
+  imgModelChanged();
   $('stCount').textContent=models.length;$('stSize').textContent=fmt(models.reduce((a,m)=>a+(m.size||0),0));
   const box=$('installed');box.replaceChildren();
   if(!models.length)box.append(el('div',{className:'dim',textContent:'Пока пусто — вставьте ссылку на модель выше.'}));
@@ -342,7 +367,8 @@ async function search(){const t=$('qText').value.trim();try{msg('Поиск…')
   const box=$('qRes');box.classList.remove('hidden');box.replaceChildren(...(r.length?r.map(m=>{const h=el('div',{className:'hit'},famAvatar(KiraAnalyze.guessFamily(m.id)||m.id),el('b',{textContent:m.id}),el('span',{className:'dim',textContent:'⬇ '+num(m.downloads)}));
     h.onclick=()=>{showTab('srcTabs','link');$('linkIn').value=m.id;runAnalyze(m.id)};return h}):[el('div',{className:'dim',textContent:'Ничего не найдено'})]));msg('Нажмите на модель, чтобы увидеть подробности')}catch(e){msg(e.message)}}
 $('qGo').onclick=search;$('qText').onkeydown=e=>{if(e.key==='Enter')search()};
-$('extAdd').onclick=async()=>{try{await post('/api/models/external',{name:$('extName').value.trim()||$('extModel').value,base_url:$('extUrl').value.trim(),remote_model:$('extModel').value.trim()||null,kind:$('extKind').value});msg('Добавлено ✓');refresh()}catch(e){msg(e.message)}};
+$('extKind').onchange=()=>{const img=$('extKind').value==='image';$('extApi').classList.toggle('hidden',!img);if(img&&!/7860|sdapi/.test($('extUrl').value))$('extUrl').value='http://localhost:7860'};
+$('extAdd').onclick=async()=>{try{await post('/api/models/external',{name:$('extName').value.trim()||$('extModel').value||'Внешний сервер',base_url:$('extUrl').value.trim(),remote_model:$('extModel').value.trim()||null,kind:$('extKind').value,api:$('extApi').value});msg('Добавлено ✓');refresh()}catch(e){msg(e.message)}};
 
 /* ---------- загрузки ---------- */
 let polling=false;const speed={};
@@ -365,8 +391,8 @@ function renderRich(node,text){node.replaceChildren();text.split(/(```[\s\S]*?(?
     const b=el('button',{className:'copy',textContent:'Копировать'});b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(body);b.textContent='✓'};pre.append(b);node.append(pre)}
   else if(part)node.append(document.createTextNode(part))})}
 const typing=()=>el('span',{className:'typing'},el('i'),el('i'),el('i'));
-async function stream(slot,messages,onText,onStats){
-  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot,messages})});
+async function stream(slot,messages,onText,onStats,signal){
+  const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slot,messages}),signal});
   if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||r.statusText)}
   const rd=r.body.getReader(),dec=new TextDecoder();let buf='',full='',n=0;const t0=performance.now();
   for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
@@ -397,19 +423,27 @@ function renderChat(){const c=chat();$('persona').value=c.persona;$('customBox')
   const log=$('chatLog');log.replaceChildren();
   if(!c.messages.length){const e=el('div',{className:'hero'},el('div',{className:'orb'},icon('spark')),el('h2',{textContent:'Чем помочь?'}),el('div',{textContent:'Запустите модель и начните диалог. Всё работает локально — ваши данные остаются на устройстве.'}));
     const chips=el('div',{className:'chips'});['Объясни, как работает нейросеть','Придумай идею для pet-проекта','Составь план тренировок на неделю'].forEach(t=>{const b=el('button',{className:'chip',textContent:t});b.onclick=()=>{$('chatInput').value=t;$('chatInput').focus()};chips.append(b)});e.append(chips);log.append(e)}
-  c.messages.forEach(m=>bubble(m.role,m.content,m.meta))}
+  c.messages.forEach((m,i)=>{const b=bubble(m.role,m.content,m.meta);if(m.role==='assistant')actions(b.col,c,i)})}
 $('chatSel').onchange=e=>{cur=+e.target.value;save();renderChat()};
 $('chatNew').onclick=()=>{const c={id:Date.now(),title:'Новый чат',persona:chat().persona,custom:chat().custom,messages:[]};chats.unshift(c);cur=c.id;save();renderChatList();renderChat()};
 $('persona').onchange=e=>{chat().persona=e.target.value;save();renderChat()};$('customPrompt').oninput=e=>{chat().custom=e.target.value;save()};
-async function send(){const t=$('chatInput').value.trim();if(!t)return;const c=chat();$('chatInput').value='';autosize();
-  if(!c.messages.length){c.title=t.slice(0,32);renderChatList();$('chatLog').replaceChildren()}
-  c.messages.push({role:'user',content:t});bubble('user',t);
-  const out=bubble('assistant','');$('chatSend').disabled=true;
+let abortCtl=null;
+const SEND_ICON='#i-send';
+function setBusy(on){$('chatSend').replaceChildren(on?document.createTextNode('■'):icon('send'));$('chatSend').title=on?'Остановить':'Отправить'}
+function actions(col,c,idx){const row=el('div',{className:'acts'});const cp=el('button',{textContent:'Копировать'});cp.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(c.messages[idx].content);cp.textContent='✓'};row.append(cp);
+  if(idx===c.messages.length-1){const rg=el('button',{textContent:'↻ Повторить'});rg.onclick=()=>{if(abortCtl)return;c.messages.pop();save();renderChat();generate(c)};row.append(rg)}col.append(row)}
+async function generate(c){
+  const out=bubble('assistant','');abortCtl=new AbortController();setBusy(true);let part='',tps=0;
   const history=[...(sys(c)?[{role:'system',content:sys(c)}]:[]),...c.messages.map(({role,content})=>({role,content}))];
-  try{let tps=0;const full=await stream('chat',history,x=>{renderRich(out.b,x);$('chatLog').scrollTop=1e9},v=>tps=v);
-    const meta=tps?`${tps.toFixed(1)} ток/с`:'';if(meta)out.col.append(el('div',{className:'meta',textContent:meta}));c.messages.push({role:'assistant',content:full,meta});save()}
-  catch(e){out.b.replaceChildren(el('span',{className:'err',textContent:e.message}));c.messages.pop();save()}
-  $('chatSend').disabled=false}
+  try{part=await stream('chat',history,x=>{part=x;renderRich(out.b,x);$('chatLog').scrollTop=1e9},v=>tps=v,abortCtl.signal);c.messages.push({role:'assistant',content:part,meta:tps?`${tps.toFixed(1)} ток/с`:''})}
+  catch(e){if(e.name==='AbortError'){if(part)c.messages.push({role:'assistant',content:part,meta:'остановлено'});else out.b.replaceChildren(el('span',{className:'dim',textContent:'Остановлено'}))}
+    else{out.b.replaceChildren(el('span',{className:'err',textContent:e.message}));return finish()}}
+  save();abortCtl=null;setBusy(false);renderChat()}
+function finish(){abortCtl=null;setBusy(false)}
+async function send(){if(abortCtl){abortCtl.abort();return}
+  const t=$('chatInput').value.trim();if(!t)return;const c=chat();$('chatInput').value='';autosize();
+  if(!c.messages.length){c.title=t.slice(0,32);renderChatList();$('chatLog').replaceChildren()}
+  c.messages.push({role:'user',content:t});bubble('user',t);save();generate(c)}
 $('chatSend').onclick=send;
 const autosize=()=>{const t=$('chatInput');t.style.height='44px';t.style.height=Math.min(t.scrollHeight,150)+'px'};
 $('chatInput').oninput=autosize;$('chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&window.innerWidth>700){e.preventDefault();send()}};
@@ -428,12 +462,57 @@ $('codeRun').onclick=async()=>{const task=$('codeTask').value.trim();if(!task)re
   try{await stream('code',[{role:'system',content:sysm},{role:'user',content:user}],x=>renderRich(card,x))}catch(e){card.replaceChildren(el('span',{className:'err',textContent:e.message}))}
   $('codeRun').disabled=false};
 $('codeClear').onclick=()=>{$('codeOut').replaceChildren();$('codeSrc').value='';$('codeTask').value=''};
-$('imgRun').onclick=async()=>{const id=$('imgModel').value;if(!id)return $('imgState').textContent='Нет модели изображений — вставьте ссылку на неё во вкладке «Модели».';
-  $('imgRun').disabled=true;$('imgState').textContent='Генерация… (первый запуск загружает модель)';
-  try{const seed=$('imgSeed').value;const r=await post('/api/image',{model_id:id,prompt:$('imgPrompt').value,negative:$('imgNeg').value,steps:+$('imgSteps').value,width:+$('imgW').value,height:+$('imgH').value,seed:seed===''?null:+seed});
-    $('imgOut').prepend(el('img',{className:'out',src:r.url}));$('imgState').textContent='Готово ✓'}catch(e){$('imgState').textContent=e.message}$('imgRun').disabled=false};
 
-renderChatList();renderChat();refresh();poll();
+/* ---------- изображения ---------- */
+const STYLES=[['Без стиля','',''],['Фото','photorealistic, highly detailed, natural lighting, 85mm photo','cartoon, illustration, painting, deformed'],['Аниме','anime style, vibrant colors, clean lineart, studio quality','photo, realistic, blurry'],
+  ['Цифровая живопись','digital painting, concept art, dramatic lighting, artstation','photo, lowres'],['3D-рендер','3d render, octane render, soft studio lighting, high detail','flat, lowres'],['Пиксель-арт','pixel art, 16-bit, limited palette, crisp pixels','blurry, smooth, photo'],
+  ['Акварель','watercolor painting, soft washes, paper texture','photo, sharp digital'],['Кино','cinematic still, anamorphic lens, film grain, moody lighting','cartoon, flat lighting']];
+const RATIOS=[['Квадрат',512,512],['Портрет',512,768],['Пейзаж',768,512],['Широкий',768,448],['SDXL 1:1',1024,1024]];
+const IDEAS=['уютная хижина в заснеженном лесу на закате','киберпанк-город под дождём, неоновые вывески','дружелюбный робот-повар на кухне','космонавт верхом на олене в тумане','старая библиотека с парящими свечами','кот-самурай в осеннем саду'];
+let styleIdx=0,ratioIdx=0,countN=1,curJob=null;
+$('imgStyles').replaceChildren(...STYLES.map(([t],i)=>{const b=el('button',{className:'chip'+(i===0?' sel':''),textContent:t});b.onclick=()=>{styleIdx=i;[...$('imgStyles').children].forEach((x,j)=>x.classList.toggle('sel',j===i))};return b}));
+function setSize(w,h){$('imgW').value=w;$('imgH').value=h}
+$('imgRatio').replaceChildren(...RATIOS.map(([t,w,h],i)=>{const b=el('button',{textContent:`${t} ${w}×${h}`,className:i===0?'sel':''});b.onclick=()=>{ratioIdx=i;setSize(w,h);[...$('imgRatio').children].forEach((x,j)=>x.classList.toggle('sel',j===i))};return b}));
+$('imgCount').replaceChildren(...[1,2,3,4].map(n=>{const b=el('button',{textContent:String(n),className:n===1?'sel':''});b.onclick=()=>{countN=n;[...$('imgCount').children].forEach((x,j)=>x.classList.toggle('sel',j===n-1))};return b}));
+$('imgDice').onclick=()=>{$('imgSeed').value=Math.floor(Math.random()*2**31)};
+$('imgIdea').onclick=()=>{$('imgPrompt').value=IDEAS[Math.floor(Math.random()*IDEAS.length)]};
+$('imgImprove').onclick=async()=>{const t=$('imgPrompt').value.trim();if(!t)return $('imgHelp').textContent='Сначала напишите идею';
+  $('imgHelp').textContent='Думаю…';$('imgImprove').disabled=true;
+  try{const r=await stream('chat',[{role:'system',content:'Ты помощник по промптам для генерации изображений (Stable Diffusion). Перепиши идею пользователя в один подробный абзац на английском: сюжет, композиция, свет, стиль, детали. Только текст промпта, без пояснений и кавычек.'},{role:'user',content:t}],x=>{$('imgPrompt').value=x});$('imgHelp').textContent='Готово ✓'}
+  catch(e){$('imgHelp').textContent=e.message.includes('не загружена')?'Для улучшения запустите текстовую модель в чате':e.message}$('imgImprove').disabled=false};
+function imgModelChanged(){const m=models.find(x=>x.id===$('imgModel').value);const remote=m&&m.format==='remote_image';const w=$('imgWarn');
+  const noLocal=!remote&&!status.images;w.classList.toggle('hidden',!(noLocal||!m));
+  w.textContent=!m?'Нет модели изображений. Вставьте ссылку на модель (для ПК) или подключите сервер A1111/Forge/OpenAI во вкладке «Модели → Свой сервер» — это работает и на телефоне.':status.platform==='android'?'На телефоне такая модель не запустится. Подключите внешний сервер (A1111/Forge/OpenAI) в «Модели → Свой сервер».':'Для локальной генерации: pip install diffusers torch transformers accelerate safetensors — или подключите внешний сервер.'}
+$('imgModel').onchange=imgModelChanged;
+function fullPrompt(){const st=STYLES[styleIdx];return {prompt:$('imgPrompt').value.trim()+(st[1]?', '+st[1]:''),negative:[$('imgNeg').value.trim(),st[2]].filter(Boolean).join(', ')}}
+function imgCard(im,wrap){const i=el('img',{src:im.url,loading:'lazy',alt:im.prompt||''});i.onclick=()=>lightbox(im);return i}
+async function pollImage(id){for(;;){const j=await api('/api/image/'+id);const pct=j.total?Math.round(100*j.step/j.total):0;
+  $('imgBar').querySelector('i').style.width=(j.status==='running'&&!j.step?5:pct)+'%';
+  $('imgState').textContent=j.status==='running'?`Генерация… ${pct}% (${j.images.length}/${countN})`:j.status==='queued'?'В очереди…':'';
+  $('imgOut').replaceChildren(...j.images.map(im=>imgCard(im)));
+  if(j.status==='error')throw new Error(j.error);
+  if(['done','cancelled'].includes(j.status))return j;
+  await new Promise(r=>setTimeout(r,700))}}
+$('imgRun').onclick=async()=>{const id=$('imgModel').value;if(!id)return $('imgState').textContent='Нет модели изображений.';const p=$('imgPrompt').value.trim();if(!p)return $('imgState').textContent='Напишите промпт';
+  const seed=$('imgSeed').value,fp=fullPrompt();$('imgRun').disabled=true;$('imgCancel').classList.remove('hidden');$('imgBar').classList.remove('hidden');$('imgBar').querySelector('i').style.width='0';$('imgOut').replaceChildren();
+  try{const job=await post('/api/image',{model_id:id,...fp,steps:+$('imgSteps').value,guidance:+$('imgCfg').value,width:+$('imgW').value,height:+$('imgH').value,count:countN,seed:seed===''?null:+seed});curJob=job.id;
+    const j=await pollImage(job.id);$('imgState').textContent=j.status==='cancelled'?'Остановлено':`Готово ✓ seed: ${j.images[0]?j.images[0].seed:''}`;loadGallery()}
+  catch(e){$('imgState').textContent=e.message}
+  curJob=null;$('imgRun').disabled=false;$('imgCancel').classList.add('hidden');setTimeout(()=>$('imgBar').classList.add('hidden'),600)};
+$('imgCancel').onclick=()=>{if(curJob)api('/api/image/'+curJob,{method:'DELETE'})};
+async function loadGallery(){try{const g=await api('/api/gallery');$('galleryEmpty').classList.toggle('hidden',g.length>0);
+  $('gallery').replaceChildren(...g.map(im=>{const t=el('div',{className:'th'},el('img',{src:im.url,loading:'lazy',alt:im.prompt||''}));t.onclick=()=>lightbox(im);return t}))}catch{}}
+function lightbox(im){const lb=$('lightbox');lb.classList.remove('hidden');
+  const info=[im.model,im.width&&im.height&&`${im.width}×${im.height}`,im.steps&&`${im.steps} шагов`,im.guidance&&`CFG ${im.guidance}`,im.seed!=null&&`seed ${im.seed}`].filter(Boolean).join(' · ');
+  const use=el('button',{textContent:'Использовать настройки'});use.onclick=()=>{$('imgPrompt').value=im.prompt||'';$('imgNeg').value=im.negative||'';$('imgSteps').value=im.steps||25;$('imgCfg').value=im.guidance||7;$('imgW').value=im.width||512;$('imgH').value=im.height||512;$('imgSeed').value=im.seed??'';styleIdx=0;[...$('imgStyles').children].forEach((x,j)=>x.classList.toggle('sel',j===0));lb.classList.add('hidden');showTab('studioTabs','image')};
+  const cp=el('button',{textContent:'Копировать промпт'});cp.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(im.prompt||'');cp.textContent='✓'};
+  const dl=el('a',{className:'btn',href:im.url,download:im.name||'image.png',textContent:'Скачать'});
+  const del=el('button',{className:'danger',textContent:'Удалить'});del.onclick=async()=>{if(confirm('Удалить картинку?')){await api('/api/gallery/'+im.name,{method:'DELETE'});lb.classList.add('hidden');loadGallery()}};
+  const close=el('button',{textContent:'Закрыть'});close.onclick=()=>lb.classList.add('hidden');
+  lb.replaceChildren(el('img',{src:im.url}),el('div',{className:'info'},el('div',{textContent:im.prompt||''}),el('div',{className:'dim',textContent:info,style:'color:#aab;margin-top:6px'})),el('div',{className:'row'},use,cp,dl,del,close))}
+$('lightbox').onclick=e=>{if(e.target.id==='lightbox')$('lightbox').classList.add('hidden')};
+
+renderChatList();renderChat();refresh().then(imgModelChanged);poll();loadGallery();
 </script>
 </body>
 </html>
